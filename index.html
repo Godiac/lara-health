@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang='tr'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Lara Health - Klinik Takviye & Recete Asistani</title>
+    <link rel='stylesheet' href='style.css'>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <header id="mainHeader" style="display: none;">
+        <div style="display:flex; align-items:center; gap: 20px;">
+            <div class='logo'>LARA HEALTH</div>
+            <div class='title'>Klinik Takviye &amp; Recete Asistani</div>
+        </div>
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <button id="btnNavSearch" onclick="openModule('search')" style="background: #2980b9; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">🔍 Arama &amp; Recete</button>
+            <button id="btnNavGallery" onclick="openModule('gallery')" style="background: #16a085; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">📸 Gorsel Galerisi</button>
+            <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelUpload(event)">
+            <button onclick="resetDatabase()" style="background: #7f8c8d; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">&#8634; Sifirla</button>
+            <button onclick="document.getElementById('excelUpload').click()" style="background: #F39C12; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">
+                &#128194; Excel Guncelle
+            </button>
+            <span id="dbStatus" style="font-size: 11px; opacity: 0.8;">Orjinal Veritabani</span>
+            <button onclick="window.location.reload()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px;">Ana Menu</button>
+        </div>
+    </header>
+
+    <div id="dashboardSection" class="splash-screen dark-kinetic-bg">
+        <div class="kinetic-light light-1"></div>
+        <div class="kinetic-light light-2"></div>
+        <div class="kinetic-light light-3"></div>
+        <div class="splash-content">
+            <img src="https://www.larahealth.com/wp-content/uploads/2025/10/larahealth-logo.png" alt="Lara Health Logo" class="splash-logo">
+            <h2 class="splash-welcome">Hosgeldiniz</h2>
+            <ul class="menu-list">
+                <li class="menu-item main-action" onclick="openModule('search')">Klinik Takviye &amp; Recete Asistani</li>
+                <li class="menu-item" onclick="openModule('gallery')" style="background: linear-gradient(135deg, #16a085, #1abc9c); color: white; font-weight: bold;">📸 Prospektus &amp; Gorsel Galerisi <span id="splashGalleryCount">(335 Gorsel)</span></li>
+                <li class="menu-item disabled">Yapay Zeka Tahlil Analizi (Yakinda)</li>
+                <li class="menu-item disabled">Senkronizasyon Ayarlari</li>
+                <li class="menu-item" onclick="if(window.pywebview){window.close();}else{alert('Sekmeyi kapatabilirsiniz.');}" style="margin-top: 30px; font-size: 1.1rem; opacity: 0.7;">Cikis</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class='container' id='mainContainer' style="display: none;">
+        <main class='search-section'>
+            <div class='search-panel'>
+                <div class='search-row'>
+                    <div class='input-group'><label>Aranacak Kelime 1 (VE)</label><input type='text' id='search1' placeholder='Yazip ENTERa basin...' autocomplete='off'></div>
+                    <div class='input-group'><label>Kelime 2 (Opsiyonel)</label><input type='text' id='search2' placeholder='Yazip ENTERa basin...' autocomplete='off'></div>
+                    <div class='input-group exclude'><label>Dislanacak (Icermesin)</label><input type='text' id='searchExclude' placeholder='Yazip ENTERa basin...' autocomplete='off'></div>
+                    <div class='input-group'><label>Arama Kapsami</label><select id='searchScope'><option value='all'>Tum Tablo</option><option value='ingredients'>Sadece Icerikler</option><option value='indications'>Sadece Ozellikler</option></select></div>
+                    <div class='input-group' style='flex: 0.5; justify-content: flex-end;'><button onclick='runSearch()' style='background-color:#27AE60; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:14px; height: 41px; margin-top:21px;'>ARA &#128269;</button></div>
+                </div>
+                <div style='margin-top: 10px; font-size: 12px; color: #7F8C8D; font-style: italic;'>* Kelimeyi yazip <b>ENTER</b> basin veya Ara butonuna tiklayin.</div>
+            </div>
+            <div class='results-info' id='resultsInfo'>Arama bekleniyor...</div>
+            <div class='table-container'>
+                <table id='resultsTable'>
+                    <thead><tr><th>Kategori</th><th>Urun Adi</th><th>Marka</th><th>Icerik (Dozaj)</th><th>Endikasyon</th><th>Islem</th></tr></thead>
+                    <tbody id='resultsBody'></tbody>
+                </table>
+            </div>
+        </main>
+
+        <aside class='simulator-section'>
+            <div class='simulator-header'>
+                <h3>Recete Simulatoru</h3>
+                <p>Polifarmasi ve Etkilesim Kontrolu</p>
+                <button onclick="downloadPrescription()" style="margin-top:5px; background:#D4AF37; border:none; color:white; border-radius:4px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;">
+                    &#11015; Receteyi Indir
+                </button>
+            </div>
+            <div id='cartItems' class='cart-items'>
+                <div class='empty-cart'>Receteye henuz urun eklenmedi.</div>
+            </div>
+            <div id='simulatorAlerts' class='simulator-alerts'></div>
+        </aside>
+    </div>
+
+    <div class='gallery-section' id='galleryContainer' style="display: none;">
+        <div class='gallery-bar'>
+            <input type='text' id='gallerySearch' class='gallery-search-input' placeholder='Galeri icinde marka, urun veya etken madde ara (orn: nbtlife, magnezyum, omega)...' oninput='filterGallery()'>
+            <span id='galleryCountBadge' class='gallery-badge'>335 Gorsel</span>
+        </div>
+        <div id='galleryGrid' class='gallery-grid'></div>
+    </div>
+
+    <div id='detailModal' class='modal'>
+        <div class='modal-content'>
+            <span class='close-btn' id='closeModal'>&times;</span>
+            <div id='modalBody'></div>
+        </div>
+    </div>
+
+    <script src='data.js'></script>
+    <script src='app.js'></script>
+</body>
+</html>
