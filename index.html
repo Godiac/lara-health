@@ -69,12 +69,6 @@
         <div style="display:flex; align-items:center; gap: 10px;">
             <button id="btnNavSearch" onclick="openModule('search')" style="background: #2980b9; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">🔍 Arama &amp; Recete</button>
             <button id="btnNavGallery" onclick="openModule('gallery')" style="background: #16a085; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">📸 Gorsel Galerisi</button>
-            <input type="file" id="excelUpload" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelUpload(event)">
-            <button onclick="resetDatabase()" style="background: #7f8c8d; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">&#8634; Sifirla</button>
-            <button onclick="document.getElementById('excelUpload').click()" style="background: #F39C12; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px;">
-                &#128194; Excel Guncelle
-            </button>
-            <span id="dbStatus" style="font-size: 11px; opacity: 0.8;">Orjinal Veritabani</span>
             <button onclick="window.location.reload()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px;">Ana Menu</button>
             <button onclick="lockClinicApp()" title="Oturumu Kilitle" style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 5px;">🔒 Kilitle</button>
         </div>

@@ -505,8 +505,11 @@ window.handleExcelUpload = function(event) {
         });
         try { localStorage.setItem('lara_health_db', JSON.stringify(newDb)); } catch(e) {}
         CURRENT_DB = newDb;
-        document.getElementById('dbStatus').textContent = 'Guncel Excel Yuklu (' + newDb.length + ' urun)';
-        document.getElementById('dbStatus').style.color = '#F1C40F';
+        const dbStatusEl = document.getElementById('dbStatus');
+        if (dbStatusEl) {
+            dbStatusEl.textContent = 'Guncel Excel Yuklu (' + newDb.length + ' urun)';
+            dbStatusEl.style.color = '#F1C40F';
+        }
         alert('Excel yuklendi! ' + newDb.length + ' urun aktarildi.');
         runSearch();
     };
