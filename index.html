@@ -7,13 +7,60 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lara Health">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <meta name="theme-color" content="#1a252f">
     <link rel="apple-touch-icon" href="https://www.larahealth.com/wp-content/uploads/2025/10/larahealth-logo.png">
     <link rel="icon" type="image/png" href="https://www.larahealth.com/wp-content/uploads/2025/10/larahealth-logo.png">
     <link rel='stylesheet' href='style.css'>
+    <script src="crypto.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
+    <!-- CLINICAL SECURITY GATE (PIN LOCK SCREEN) -->
+    <div id="pinLockSection" class="pin-screen dark-kinetic-bg">
+        <div class="kinetic-light light-1"></div>
+        <div class="kinetic-light light-2"></div>
+        <div class="kinetic-light light-3"></div>
+        <div class="pin-card">
+            <img src="https://www.larahealth.com/wp-content/uploads/2025/10/larahealth-logo.png" alt="Lara Health Logo" class="pin-logo">
+            <h2 class="pin-title">LARA HEALTH</h2>
+            <p class="pin-subtitle">Klinik Güvenlik Doğrulaması</p>
+            <p class="pin-instruction">Lütfen 4 Haneli Klinik PIN Kodunuzu Giriniz</p>
+            
+            <div class="pin-dots-container" id="pinDots">
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+            </div>
+            
+            <div id="pinErrorMsg" class="pin-error" style="display: none;"></div>
+
+            <div class="pin-keypad">
+                <button type="button" class="pin-key" onclick="pressPin('1')">1</button>
+                <button type="button" class="pin-key" onclick="pressPin('2')">2</button>
+                <button type="button" class="pin-key" onclick="pressPin('3')">3</button>
+                <button type="button" class="pin-key" onclick="pressPin('4')">4</button>
+                <button type="button" class="pin-key" onclick="pressPin('5')">5</button>
+                <button type="button" class="pin-key" onclick="pressPin('6')">6</button>
+                <button type="button" class="pin-key" onclick="pressPin('7')">7</button>
+                <button type="button" class="pin-key" onclick="pressPin('8')">8</button>
+                <button type="button" class="pin-key" onclick="pressPin('9')">9</button>
+                <button type="button" class="pin-key pin-fn" onclick="clearPin()">C</button>
+                <button type="button" class="pin-key" onclick="pressPin('0')">0</button>
+                <button type="button" class="pin-key pin-fn" onclick="backspacePin()">⌫</button>
+            </div>
+
+            <div class="pin-remember-box">
+                <label style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: #bdc3c7;">
+                    <input type="checkbox" id="rememberDevice" checked style="accent-color: #27ae60; cursor: pointer; width: 16px; height: 16px;">
+                    <span>Bu cihazı güvenli olarak hatırla (30 gün)</span>
+                </label>
+            </div>
+            <div class="pin-footer-note">Yetkili klinik personeli, hekim ve diyetisyenler içindir.</div>
+        </div>
+    </div>
+
     <header id="mainHeader" style="display: none;">
         <div style="display:flex; align-items:center; gap: 20px;">
             <div class='logo'>LARA HEALTH</div>
@@ -29,10 +76,11 @@
             </button>
             <span id="dbStatus" style="font-size: 11px; opacity: 0.8;">Orjinal Veritabani</span>
             <button onclick="window.location.reload()" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 10px;">Ana Menu</button>
+            <button onclick="lockClinicApp()" title="Oturumu Kilitle" style="background: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-left: 5px;">🔒 Kilitle</button>
         </div>
     </header>
 
-    <div id="dashboardSection" class="splash-screen dark-kinetic-bg">
+    <div id="dashboardSection" class="splash-screen dark-kinetic-bg" style="display: none;">
         <div class="kinetic-light light-1"></div>
         <div class="kinetic-light light-2"></div>
         <div class="kinetic-light light-3"></div>
