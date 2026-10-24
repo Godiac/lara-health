@@ -1011,9 +1011,10 @@ function renderProductsTable(products, isIncremental = false) {
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
 
-        const hasImg = p.gorsel && p.gorsel.trim();
+        const thumbSrc = p.prospektus_gorsel || p.gorsel;
+        const hasImg = thumbSrc && thumbSrc.trim();
         const imgThumb = hasImg
-            ? `<img src="${p.gorsel}" class="table-thumb" alt="${p.urunAdi}" onerror="this.style.display='none'" onclick="event.stopPropagation(); openDetailModal(${p.id});" title="Prospektüs ve Detay Görüntüle">`
+            ? `<img src="${thumbSrc}" class="table-thumb" alt="${p.urunAdi}" onerror="this.style.display='none'" onclick="event.stopPropagation(); openDetailModal(${p.id});" title="Resmi Prospektüs & İçerik Tablosu">`
             : `<span class="table-thumb" style="display:inline-flex; align-items:center; justify-content:center; font-size:18px; color:var(--text-muted); cursor:pointer;" onclick="event.stopPropagation(); openDetailModal(${p.id});" title="Detay Görüntüle">📄</span>`;
 
         let dosageHtml = '';
@@ -1221,8 +1222,9 @@ function openDetailModal(id) {
     }
 
     // 2. Urun Orijinal Ambalaj Gorseli (Sise / Kutu)
-    if (p.gorsel && !isGorselProsp) {
-        if (productImg) productImg.src = p.gorsel;
+    const bottleSrc = p.ambalaj_gorsel || (p.gorsel && !p.gorsel.toLowerCase().includes('prospektus') ? p.gorsel : null);
+    if (bottleSrc) {
+        if (productImg) productImg.src = bottleSrc;
         if (productImgCard) productImgCard.style.display = 'block';
     } else {
         if (productImgCard) productImgCard.style.display = 'none';
