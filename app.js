@@ -147,10 +147,15 @@ window.addEventListener('keydown', (e) => {
     if (pinSection && pinSection.style.display !== 'none') {
         if (e.key >= '0' && e.key <= '9') {
             pressPin(e.key);
+        } else if (e.code && e.code.startsWith('Numpad') && e.code.length === 7) {
+            const d = e.code.replace('Numpad', '');
+            if (d >= '0' && d <= '9') pressPin(d);
         } else if (e.key === 'Backspace') {
             backspacePin();
         } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
             clearPin();
+        } else if (e.key === 'Enter') {
+            if (enteredPin.length === 4) validatePinSubmission();
         }
     }
 });
@@ -3106,4 +3111,4 @@ function copyPrescriptionText() {
 function initApp() {
     renderAll();
     updateRxUI();
-});
+}
