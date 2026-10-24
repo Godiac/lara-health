@@ -1200,13 +1200,33 @@ function openDetailModal(id) {
     });
     document.getElementById('modalIngredientChips').innerHTML = chipsHtml;
 
+    const productImgCard = document.getElementById('modalProductImgCard');
+    const productImg = document.getElementById('modalProductImg');
     const modalImg = document.getElementById('modalProspektusImg');
     const modalSection = document.getElementById('modalProspektusSection');
-    if (p.gorsel) {
-        modalImg.src = p.gorsel;
-        modalSection.style.display = 'block';
+
+    const hasProsp = !!p.prospektus_gorsel;
+    const isGorselProsp = p.gorsel && (p.gorsel.toLowerCase().includes('prospektus') || p.gorsel.toLowerCase().includes('besin_deger'));
+
+    // 1. Resmi Prospektus / Besin Degerleri Gorseli
+    if (hasProsp) {
+        if (modalImg) modalImg.src = p.prospektus_gorsel;
+        if (modalSection) modalSection.style.display = 'block';
+    } else if (isGorselProsp) {
+        if (modalImg) modalImg.src = p.gorsel;
+        if (modalSection) modalSection.style.display = 'block';
     } else {
-        modalSection.style.display = 'none';
+        if (modalSection) modalSection.style.display = 'none';
+        if (modalImg) modalImg.src = '';
+    }
+
+    // 2. Urun Orijinal Ambalaj Gorseli (Sise / Kutu)
+    if (p.gorsel && !isGorselProsp) {
+        if (productImg) productImg.src = p.gorsel;
+        if (productImgCard) productImgCard.style.display = 'block';
+    } else {
+        if (productImgCard) productImgCard.style.display = 'none';
+        if (productImg) productImg.src = '';
     }
 
     const isInRx = prescriptionList.some(r => r.id === p.id);

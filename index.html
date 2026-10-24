@@ -229,14 +229,35 @@
             </div>
             <div class="modal-body">
 
-                <!-- PROSPEKTÜS GÖRSELİ SECTION -->
-                <div class="modal-field" id="modalProspektusSection">
-                    <span class="modal-field-label">📸 Ürün Prospektüsü / Besin Değerleri Tablosu</span>
-                    <div class="prospektus-preview-box">
-                        <img id="modalProspektusImg" class="prospektus-img" src="" alt="Ürün Prospektüsü" 
-                             onclick="window.open(this.src, '_blank')" title="Tam boy görmek için tıklayın">
-                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
-                            Büyütmek veya indirmek için görsele tıklayabilirsiniz.
+                <!-- ÜRÜN GÖRSELLERİ VE PROSPEKTÜS BÖLÜMÜ -->
+                <div class="modal-media-grid" id="modalMediaGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <!-- 1. Ürün Ambalaj Görseli (Şişe/Kutu) -->
+                    <div class="modal-field" id="modalProductImgCard" style="display: none; margin-bottom: 0;">
+                        <span class="modal-field-label" style="display: flex; align-items: center; gap: 6px;">
+                            <span>🧴</span> Orijinal Ürün Görseli (Ambalaj / Şişe)
+                        </span>
+                        <div class="prospektus-preview-box" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px;">
+                            <img id="modalProductImg" class="prospektus-img" src="" alt="Ürün Görseli" 
+                                 onclick="window.open(this.src, '_blank')" title="Tam boy görmek için tıklayın"
+                                 style="max-height: 260px; object-fit: contain;">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                                Büyütmek için görsele tıklayabilirsiniz.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Resmi Prospektüs / Besin Değerleri Tablosu -->
+                    <div class="modal-field" id="modalProspektusSection" style="display: none; margin-bottom: 0;">
+                        <span class="modal-field-label" style="display: flex; align-items: center; gap: 6px;">
+                            <span>📄</span> Resmi Prospektüs / İçerik Tablosu
+                        </span>
+                        <div class="prospektus-preview-box" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px;">
+                            <img id="modalProspektusImg" class="prospektus-img" src="" alt="Ürün Prospektüsü" 
+                                 onclick="window.open(this.src, '_blank')" title="Tam boy görmek için tıklayın"
+                                 style="max-height: 260px; object-fit: contain;">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                                Büyütmek veya indirmek için görsele tıklayabilirsiniz.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -313,7 +334,7 @@
     
     </div>
 
-    <script src="data.js?v=20261024_05"></script>
-    <script src="app.js?v=20261024_05"></script>
+    <script src="data.js?v=20261024_07"></script>
+    <script src="app.js?v=20261024_07"></script>
 </body>
 </html>
