@@ -162,25 +162,18 @@ window.addEventListener('keydown', (e) => {
 
 
 
-// CLINICAL PURITY ENGINE (AUTOMATIC ELEVATION: SAF FORMÜLLER EN ÜSTTE -> SİNERJİ -> KARIŞIKLAR EN ALTTA)
-const NUTRIENT_FAMILIES = [
-    { key: 'mg', pattern: /\b(magnezyum|magnesium|bisglisinat|malat|taurat|sitrat|l-treonat|threonate)\b/i },
-    { key: 'b12', pattern: /\b(b12|metilkobalamin|adenozilkobalamin|hidroksokobalamin|siyanokobalamin|kobalamin|mecobalactive)\b/i },
-    { key: 'folat', pattern: /\b(folat|folic\s*acid|folik\s*asit|5-mthf|quatrefolic|metilfolat)\b/i },
-    { key: 'b6', pattern: /\b(b6|piridoksal|p-5-p|p5p|pyridoxine|piridoksin)\b/i },
-    { key: 'b_other', pattern: /\b(b1\b|tiamin|benfotiamin|b2\b|riboflavin|b3\b|niasin|niasinamid|b5\b|pantotenik|b7\b|biotin|biyotin)\b/i },
-    { key: 'd3', pattern: /\b(d3|vitamin\s*d|d\s*vitamini|kolekalsiferol|cholecalciferol)\b/i },
-    { key: 'k2', pattern: /\b(k2|k1|vitamin\s*k|mk-7|mk7|menakinon|\+\s*k\b)\b/i },
-    { key: 'c', pattern: /\b(c\s*vitamini|vitamin\s*c|askorbik|ascorbic|ester-c)\b/i },
-    { key: 'zinc', pattern: /\b(çinko|zinc|pikolinat)\b/i },
-    { key: 'iron', pattern: /\b(demir|iron|ferrit|fumarat)\b/i },
-    { key: 'calcium', pattern: /\b(kalsiyum|calcium)\b/i },
-    { key: 'potassium', pattern: /\b(potasyum|potassium)\b/i },
-    { key: 'coq10', pattern: /\b(coq10|koenzim\s*q10|ubikinon|ubiquinol)\b/i },
-    { key: 'glutathione', pattern: /\b(glutatyon|glutathione|setria)\b/i },
-    { key: 'omega', pattern: /\b(omega\s*3|balık\s*yağı|epa\b|dha\b|krill)\b/i },
-    { key: 'probiotic', pattern: /\b(probiyotik|probiotic|lactobacillus|bifidobacterium|akkermansia)\b/i }
-];
+function initProductSearchIndex() {
+    if (typeof ALL_PRODUCTS === 'undefined' || !Array.isArray(ALL_PRODUCTS)) return;
+    for (let i = 0; i < ALL_PRODUCTS.length; i++) {
+        const p = ALL_PRODUCTS[i];
+        if (!p._searchStr) {
+            p._searchStr = ((p.urunAdi || '') + ' ' + (p.marka || '') + ' ' + (p.icerik || '') + ' ' + (p.endikasyon || '') + ' ' + (p.tags || '')).toLowerCase();
+            p._titleLower = (p.urunAdi || '').toLowerCase();
+            p._brandLower = (p.marka || '').toLowerCase();
+        }
+    }
+}
+
 
 function getPurityTier(product, queryTerm, aliases = []) {
     const title = (product.urunAdi || '').toLowerCase();
@@ -277,6 +270,16 @@ const CAROUSEL_INGREDIENTS = [
     { name: 'NAC', label: 'NAC (N-Asetil Sistein)', aliases: ['nac', 'n-asetil sistein', 'acetylcysteine'] }
 ];
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function escapeRegex(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -285,6 +288,12 @@ function escapeRegex(string) {
 function setViewMode(mode) {
     currentViewMode = mode;
     updateViewModeUI();
+    const filtered = filterAndSortProducts();
+    if (currentViewMode === 'table') {
+        renderProductsTable(filtered, false);
+    } else {
+        renderProductsGrid(filtered, false);
+    }
 }
 
 function updateViewModeUI() {
@@ -580,6 +589,7 @@ function isModuleMatch(product, mod) {
 
 // PRECISION FILTER AND SORT (EN YÜKSEKTEN EN DÜŞÜĞE DOĞRU OTOMATİK SIRALAMA)
 function filterAndSortProducts() {
+    initProductSearchIndex();
     let list = [...ALL_PRODUCTS];
 
     // 1. Origin filter (TR vs ABD)
@@ -722,15 +732,31 @@ function filterAndSortProducts() {
     return list;
 }
 
-// RENDER ALL
-function renderAll() {
+// RENDER ALL (HIGH PERFORMANCE)
+const PAGE_CHUNK = 40;
+let currentRenderLimit = PAGE_CHUNK;
+
+function loadMoreProducts() {
+    currentRenderLimit += PAGE_CHUNK;
+    renderAll(true);
+}
+
+function renderAll(isIncremental = false) {
+    if (!isIncremental) {
+        currentRenderLimit = PAGE_CHUNK;
+    }
     const filtered = filterAndSortProducts();
-    updateOriginBadges();
-    renderCarouselTrack();
-    renderRankingBanner();
-    renderRecentlyViewedSection();
-    renderProductsTable(filtered);
-    renderProductsGrid(filtered);
+    
+    const countEl = document.getElementById('resultsCount');
+    if (countEl) {
+        countEl.innerHTML = 'Gösterilen: <strong>' + Math.min(currentRenderLimit, filtered.length).toLocaleString('tr-TR') + ' / ' + filtered.length.toLocaleString('tr-TR') + '</strong> takviye';
+    }
+
+    if (currentViewMode === 'table') {
+        renderProductsTable(filtered, isIncremental);
+    } else {
+        renderProductsGrid(filtered, isIncremental);
+    }
     updateViewModeUI();
 }
 
@@ -902,7 +928,7 @@ function onSearchInput(val) {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
         executeSearchInput(val);
-    }, 120);
+    }, 60);
 }
 
 function executeSearchInput(val) {
@@ -914,13 +940,13 @@ function executeSearchInput(val) {
     if (clearBtn) {
         clearBtn.style.display = searchQuery ? 'block' : 'none';
     }
-    // When typing a search query, reset module filter to HEPSI so matching products are never hidden
     if (searchQuery && currentModule !== 'HEPSI') {
         currentModule = 'HEPSI';
         document.querySelectorAll('.module-tab').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.module === 'HEPSI');
         });
     }
+    currentRenderLimit = PAGE_CHUNK;
     renderAll();
 }
 
@@ -938,454 +964,9 @@ function clearSearch() {
     clearMainSearch();
 }
 
-
-// HIGH-PERFORMANCE CHUNKED RENDERING (60 FPS INSTANT UI)
-const PAGE_CHUNK = 80;
-let currentRenderLimit = PAGE_CHUNK;
-
-function loadMoreProducts() {
-    currentRenderLimit += PAGE_CHUNK;
-    renderAll(true); // partial re-render without resetting limit
-}
-
-// 1. ESKİ TİP KLASİK TABLO GÖRÜNÜMÜ (CHUNKLAR HALİNDE ŞİMŞEK HIZINDA)
+// 1. ESKİ TİP KLASİK TABLO GÖRÜNÜMÜ (CHUNKED RENDERER)
 function renderProductsTable(products, isIncremental = false) {
     const tbody = document.getElementById('productsTableBody');
-    const countEl = document.getElementById('resultsCount');
-    if (!tbody) return;
-
-    if (!isIncremental) {
-        currentRenderLimit = PAGE_CHUNK;
-    }
-
-    const totalCount = products.length;
-    const toRender = products.slice(0, currentRenderLimit);
-
-    if (countEl) {
-        if (totalCount > currentRenderLimit) {
-            countEl.innerHTML = 'Gösterilen: <strong>' + toRender.length + '</strong> / ' + totalCount.toLocaleString('tr-TR') + ' takviye';
-        } else {
-            countEl.innerHTML = 'Gösterilen: <strong>' + totalCount.toLocaleString('tr-TR') + '</strong> takviye';
-        }
-    }
-
-    if (totalCount === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 48px 20px;">
-                    <div style="font-size: 40px; margin-bottom: 12px;">🔍</div>
-                    <div style="font-weight: 700; font-size: 16px; color: var(--navy-primary); margin-bottom: 6px;">Eşleşen Takviye Bulunamadı</div>
-                    <div style="font-size: 13px; color: var(--text-muted);">Arama kriterlerinizi değiştirerek tekrar deneyebilirsiniz.</div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    let html = '';
-    toRender.forEach(p => {
-        const isInRx = prescriptionList.some(r => r.id === p.id);
-        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
-        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
-        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
-
-        const hasImg = p.gorsel && p.gorsel.trim();
-        const imgThumb = hasImg
-            ? `<img src="${p.gorsel}" class="table-thumb" alt="${p.urunAdi}" loading="lazy" onerror="this.style.display='none'" onclick="event.stopPropagation(); openDetailModal(${p.id});" title="Prospektüs ve Detay Görüntüle">`
-            : `<span class="table-thumb" style="display:inline-flex; align-items:center; justify-content:center; font-size:18px; color:var(--text-muted); cursor:pointer;" onclick="event.stopPropagation(); openDetailModal(${p.id});" title="Detay Görüntüle">📄</span>`;
-
-        let dosageHtml = '';
-        if (p._active_dosage && p._active_dosage.rawStr) {
-            dosageHtml = `<div class="table-active-dosage">⭐ ${p._active_dosage.rawStr}</div>`;
-        }
-
-        const highlightedIcerik = highlightMatch(p.icerik || '', searchQuery);
-
-        html += `
-            <tr onclick="openDetailModal(${p.id})">
-                <td>
-                    <span class="table-badge-cat">${p.modul || p.kategori || 'Genel'}</span>
-                </td>
-                <td>
-                    <div class="table-product-title-wrap">
-                        ${imgThumb}
-                        <div>
-                            <div class="table-product-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                <span>${highlightedTitle}</span>
-                                ${searchQuery && p._purityTier === 1 ? '<span class="badge-tier-pure" title="Sadece aranan saf/tekil etken madde">✨ Saf Formül</span>' : ''}
-                                ${searchQuery && p._purityTier === 2 ? '<span class="badge-tier-synergy" title="Sinerjik odaklı formül">⚡ Odaklı Sinerji</span>' : ''}
-                                ${searchQuery && p._purityTier === 3 ? '<span class="badge-tier-complex" title="Çoklu kompleks / multivitamin">🌿 Kompleks</span>' : ''}
-                            </div>
-                            <span class="table-badge-mensei ${p.mensei === 'TR' ? 'badge-mensei-tr' : 'badge-mensei-abd'}">
-                                ${p.mensei === 'TR' ? '🇹🇷 TR' : '🇺🇸 ABD'}
-                            </span>
-                        </div>
-                    </div>
-                </td>
-                <td style="font-weight: 600; color: var(--text-heading);">${highlightedBrand}</td>
-                <td>
-                    ${dosageHtml}
-                    <div style="font-size: 12px; line-height: 1.4; color: var(--text-body); max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
-                        ${highlightedIcerik}
-                    </div>
-                </td>
-                <td>
-                    <div style="font-size: 12px; line-height: 1.4; color: var(--text-muted); max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
-                        ${highlightedIndication}
-                    </div>
-                </td>
-                <td style="text-align: center;" onclick="event.stopPropagation()">
-                    <div class="table-action-btns">
-                        <button class="table-btn-rx ${isInRx ? 'added' : ''}" onclick="togglePrescriptionItem(${p.id})">
-                            ${isInRx ? '✓ Çıkar' : '+ Ekle'}
-                        </button>
-                        <button class="table-btn-detail" onclick="openDetailModal(${p.id})" title="Detaylı İncele">
-                            👁️
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-
-    if (totalCount > currentRenderLimit) {
-        html += `
-            <tr id="tableLoadMoreRow">
-                <td colspan="6" style="text-align: center; padding: 20px 10px; background: #F8FAFC;">
-                    <button class="btn-load-more" onclick="loadMoreProducts()">
-                        Daha Fazla Göster (+${Math.min(PAGE_CHUNK, totalCount - currentRenderLimit)} / Kalan ${totalCount - currentRenderLimit})
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
-
-    tbody.innerHTML = html;
-}
-
-// 2. YENİ TİP MODERN KART GÖRÜNÜMÜ (CHUNKLAR HALİNDE ŞİMŞEK HIZINDA)
-function renderProductsGrid(products, isIncremental = false) {
-    const grid = document.getElementById('productsGrid');
-    if (!grid) return;
-
-    const totalCount = products.length;
-    const toRender = products.slice(0, currentRenderLimit);
-
-    if (totalCount === 0) {
-        grid.innerHTML = `
-            <div class="empty-state-card" style="grid-column: 1 / -1;">
-                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-                <h3 style="font-size: 18px; color: var(--text-heading); margin-bottom: 8px;">Eşleşen Takviye Bulunamadı</h3>
-                <p style="font-size: 13.5px; color: var(--text-muted); max-width: 480px; margin: 0 auto;">
-                    Arama kriterlerinizi değiştirerek tekrar deneyebilirsiniz.
-                </p>
-            </div>
-        `;
-        return;
-    }
-
-    let html = '';
-    toRender.forEach(p => {
-        const isInRx = prescriptionList.some(r => r.id === p.id);
-        const chips = parseIngredientChips(p.icerik);
-        
-        let chipsHtml = '';
-        chips.forEach(c => {
-            const isMatched = isChipSearchMatch(c.full, searchQuery);
-            const matchedClass = isMatched ? 'search-matched' : '';
-            const highlightedChip = highlightMatch(c.full, searchQuery);
-            chipsHtml += `
-                <span class="ing-chip-item ${matchedClass}" onclick="onChipClick('${c.full.replace(/'/g, "\\'")}', event)" title="Bu etken maddeyi filtrele">
-                    ⚡ ${highlightedChip}
-                </span>
-            `;
-        });
-
-        let dosageBadgeHtml = '';
-        if (p._active_dosage && p._active_dosage.rawStr) {
-            dosageBadgeHtml = `
-                <div class="badge-dosage-spotlight">
-                    ⭐ ${p._active_dosage.rawStr}
-                </div>
-            `;
-        }
-
-        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
-        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
-
-        html += `
-            <div class="product-card">
-                <div class="card-header">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
-                            <span class="card-brand">${p.marka || 'LARAHEALTH'}</span>
-                            ${searchQuery && p._purityTier === 1 ? '<span class="badge-tier-pure">✨ Saf Formül</span>' : ''}
-                            ${searchQuery && p._purityTier === 2 ? '<span class="badge-tier-synergy">⚡ Sinerji</span>' : ''}
-                            ${searchQuery && p._purityTier === 3 ? '<span class="badge-tier-complex">🌿 Kompleks</span>' : ''}
-                        </div>
-                        <div class="card-title">${highlightedTitle}</div>
-                    </div>
-                    <span class="badge-mensei ${p.mensei === 'TR' ? 'badge-mensei-tr' : 'badge-mensei-abd'}">
-                        ${p.mensei === 'TR' ? '🇹🇷 TR' : '🇺🇸 ABD'}
-                    </span>
-                </div>
-
-                <div class="card-body">
-                    ${dosageBadgeHtml}
-                    <div class="card-cat-badge">
-                        <span>🏷️ ${p.modul || p.kategori || 'Genel'}</span>
-                    </div>
-
-                    <div class="card-section">
-                        <div class="card-section-label">Aktif Bileşenler &amp; Formülasyon</div>
-                        <div class="ing-chips-wrap">
-                            ${chipsHtml}
-                        </div>
-                    </div>
-
-                    <div class="card-section">
-                        <div class="card-section-label">Klinik Endikasyon &amp; Protokol</div>
-                        <p class="card-indication">${highlightedIndication}</p>
-                    </div>
-                </div>
-
-                <div class="card-actions">
-                    <button class="btn-card-primary ${isInRx ? 'added' : ''}" onclick="togglePrescriptionItem(${p.id})">
-                        ${isInRx ? '✓ Çıkar' : '+ Reçeteye Ekle'}
-                    </button>
-                    <button class="btn-card-secondary" onclick="openDetailModal(${p.id})">
-                        İncele
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-
-    if (totalCount > currentRenderLimit) {
-        html += `
-            <div class="load-more-wrap">
-                <button class="btn-load-more" onclick="loadMoreProducts()">
-                    Daha Fazla Göster (+${Math.min(PAGE_CHUNK, totalCount - currentRenderLimit)} / Kalan ${totalCount - currentRenderLimit})
-                </button>
-            </div>
-        `;
-    }
-
-    grid.innerHTML = html;
-}
-
-function renderAll(isIncremental = false) {
-    const filtered = filterAndSortProducts();
-    updateOriginBadges();
-    renderRankingBanner();
-    renderRecentlyViewedSection();
-    renderProductsTable(filtered, isIncremental);
-    renderProductsGrid(filtered, isIncremental);
-    updateViewModeUI();
-}
-
-
-function updateOriginBadges() {
-    const elAll = document.getElementById('badgeOriginAll');
-    const elTr = document.getElementById('badgeOriginTr');
-    const elAbd = document.getElementById('badgeOriginAbd');
-    if (elAll) elAll.textContent = ALL_PRODUCTS.length.toLocaleString('tr-TR');
-    if (elTr) elTr.textContent = ALL_PRODUCTS.filter(p => p.mensei === 'TR').length.toLocaleString('tr-TR');
-    if (elAbd) elAbd.textContent = ALL_PRODUCTS.filter(p => p.mensei === 'ABD').length.toLocaleString('tr-TR');
-}
-
-function renderCarouselTrack() {
-    const track = document.getElementById('carouselTrack');
-    if (!track) return;
-
-    let html = '';
-    CAROUSEL_INGREDIENTS.forEach(item => {
-        const isSelected = (activeRankingIngredient && activeRankingIngredient.name === item.name) ||
-                           (searchQuery.toLowerCase().trim() === item.name.toLowerCase());
-        const activeClass = isSelected ? 'active' : '';
-
-        html += `
-            <button class="carousel-pill-btn ${activeClass}" onclick="selectCarouselIngredient('${item.name}')">
-                <span class="pill-dot">⚡</span>
-                <span>${item.label}</span>
-            </button>
-        `;
-    });
-    track.innerHTML = html;
-}
-
-function selectCarouselIngredient(name) {
-    const item = CAROUSEL_INGREDIENTS.find(x => x.name.toLowerCase() === name.toLowerCase() || x.label.toLowerCase() === name.toLowerCase());
-    if (!item) return;
-
-    if (activeRankingIngredient && activeRankingIngredient.name === item.name) {
-        clearActiveRanking();
-        return;
-    }
-
-    activeRankingIngredient = item;
-    searchQuery = item.name;
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = item.name;
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) clearBtn.style.display = 'block';
-
-    currentModule = 'HEPSI';
-    document.querySelectorAll('.module-tab').forEach(b => {
-        b.classList.toggle('active', b.dataset.module === 'HEPSI');
-    });
-
-    saveRecentSearch(item.name);
-    renderAll();
-}
-
-function scrollCarousel(distance) {
-    const track = document.getElementById('carouselTrack');
-    if (track) {
-        track.scrollBy({ left: distance, behavior: 'smooth' });
-    }
-}
-
-function renderRankingBanner() {
-    const banner = document.getElementById('rankingBanner');
-    if (!banner) return;
-
-    if (activeRankingIngredient) {
-        banner.style.display = 'flex';
-        document.getElementById('rankingBannerTitle').textContent = 
-            '⭐ ' + activeRankingIngredient.label + ' İçeriğine Göre En Yüksek Dozajdan Düşüğe Sıralandı';
-    } else {
-        banner.style.display = 'none';
-    }
-}
-
-function clearActiveRanking() {
-    activeRankingIngredient = null;
-    searchQuery = '';
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = '';
-    renderAll();
-}
-
-// RECENTLY VIEWED & RECENT SEARCHES
-function getRecentlyViewed() {
-    try {
-        const raw = localStorage.getItem('lara_recently_viewed');
-        return raw ? JSON.parse(raw) : [];
-    } catch(e) {
-        return [];
-    }
-}
-
-function saveRecentlyViewed(id) {
-    try {
-        let list = getRecentlyViewed();
-        list = list.filter(x => x !== id);
-        list.unshift(id);
-        list = list.slice(0, 8);
-        localStorage.setItem('lara_recently_viewed', JSON.stringify(list));
-    } catch(e) {}
-}
-
-function clearRecentlyViewed() {
-    try {
-        localStorage.removeItem('lara_recently_viewed');
-        renderRecentlyViewedSection();
-    } catch(e) {}
-}
-
-function renderRecentlyViewedSection() {
-    const container = document.getElementById('recentlyViewedItems');
-    const section = document.getElementById('recentlyViewedSection');
-    if (!container || !section) return;
-
-    const ids = getRecentlyViewed();
-    if (ids.length === 0) {
-        section.style.display = 'none';
-        return;
-    }
-
-    section.style.display = 'block';
-    let html = '';
-    ids.forEach(id => {
-        const p = ALL_PRODUCTS.find(x => x.id === id);
-        if (p) {
-            html += `
-                <div class="recent-item-pill" onclick="openDetailModal(${p.id})">
-                    <span>💊</span>
-                    <span>${p.urunAdi}</span>
-                </div>
-            `;
-        }
-    });
-    container.innerHTML = html;
-}
-
-function saveRecentSearch(q) {
-    try {
-        if (!q || !q.trim()) return;
-        let searches = JSON.parse(localStorage.getItem('lara_recent_searches') || '[]');
-        searches = searches.filter(x => x.toLowerCase() !== q.toLowerCase());
-        searches.unshift(q.trim());
-        localStorage.setItem('lara_recent_searches', JSON.stringify(searches.slice(0, 10)));
-    } catch(e) {}
-}
-
-// MODULE & ORIGIN FILTERS
-function selectModule(mod) {
-    currentModule = mod;
-    document.querySelectorAll('.module-tab').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.module === mod);
-    });
-    renderAll();
-}
-
-function selectOriginFilter(orig) {
-    currentOrigin = orig;
-    document.querySelectorAll('.origin-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.origin === orig);
-    });
-    renderAll();
-}
-
-function onSearchInput(val) {
-    searchQuery = (val || '').trim();
-    if (activeRankingIngredient && (!searchQuery || searchQuery.toLowerCase() !== activeRankingIngredient.name.toLowerCase())) {
-        activeRankingIngredient = null;
-    }
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) {
-        clearBtn.style.display = searchQuery ? 'block' : 'none';
-    }
-    // When typing a search query, reset module filter to HEPSI so matching products are never hidden
-    if (searchQuery && currentModule !== 'HEPSI') {
-        currentModule = 'HEPSI';
-        document.querySelectorAll('.module-tab').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.module === 'HEPSI');
-        });
-    }
-    renderAll();
-}
-
-function clearMainSearch() {
-    searchQuery = '';
-    activeRankingIngredient = null;
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = '';
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) clearBtn.style.display = 'none';
-    renderAll();
-}
-
-function clearSearch() {
-    clearMainSearch();
-}
-
-// 1. ESKİ TİP KLASİK TABLO GÖRÜNÜMÜ (SATIR SATIR - İLK AÇILIŞ VARSAYILANI)
-function renderProductsTable(products) {
-    const tbody = document.getElementById('productsTableBody');
-    const countEl = document.getElementById('resultsCount');
-    if (countEl) countEl.innerHTML = 'Gösterilen: <strong>' + products.length + '</strong> takviye';
     if (!tbody) return;
 
     if (products.length === 0) {
@@ -1401,8 +982,11 @@ function renderProductsTable(products) {
         return;
     }
 
+    const totalCount = products.length;
+    const visibleProducts = products.slice(0, currentRenderLimit);
+
     let html = '';
-    products.forEach(p => {
+    visibleProducts.forEach(p => {
         const isInRx = prescriptionList.some(r => r.id === p.id);
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
@@ -1418,60 +1002,54 @@ function renderProductsTable(products) {
             dosageHtml = `<div class="table-active-dosage">⭐ ${p._active_dosage.rawStr}</div>`;
         }
 
-        const highlightedIcerik = highlightMatch(p.icerik || '', searchQuery);
+        const tierBadge = p._purityTier === 1 
+            ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:2px 6px; border-radius:4px; margin-bottom:4px;">✨ SAF FORMÜL</span>`
+            : (p._purityTier === 2 ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:2px 6px; border-radius:4px; margin-bottom:4px;">⚡ SİNERJİK</span>` : '');
 
         html += `
             <tr onclick="openDetailModal(${p.id})">
-                <td>
-                    <span class="table-badge-cat">${p.modul || p.kategori || 'Genel'}</span>
-                </td>
-                <td>
-                    <div class="table-product-title-wrap">
-                        ${imgThumb}
-                        <div>
-                            <div class="table-product-name" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                <span>${highlightedTitle}</span>
-                                ${searchQuery && p._purityTier === 1 ? '<span class="badge-tier-pure" title="Sadece aranan saf/tekil etken madde">✨ Saf Formül</span>' : ''}
-                                ${searchQuery && p._purityTier === 2 ? '<span class="badge-tier-synergy" title="Sinerjik odaklı formül">⚡ Odaklı Sinerji</span>' : ''}
-                                ${searchQuery && p._purityTier === 3 ? '<span class="badge-tier-complex" title="Çoklu kompleks / multivitamin">🌿 Kompleks</span>' : ''}
-                            </div>
-                            <span class="table-badge-mensei ${p.mensei === 'TR' ? 'badge-mensei-tr' : 'badge-mensei-abd'}">
-                                ${p.mensei === 'TR' ? '🇹🇷 TR' : '🇺🇸 ABD'}
-                            </span>
-                        </div>
-                    </div>
-                </td>
-                <td style="font-weight: 600; color: var(--text-heading);">${highlightedBrand}</td>
-                <td>
+                <td style="width: 70px; text-align: center;">${imgThumb}</td>
+                <td style="width: 280px;">
+                    ${tierBadge ? tierBadge + '<br>' : ''}
+                    <div class="table-prod-name">${highlightedTitle}</div>
+                    <div class="table-brand-name">${highlightedBrand}</div>
                     ${dosageHtml}
-                    <div style="font-size: 12px; line-height: 1.4; color: var(--text-body); max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
-                        ${highlightedIcerik}
-                    </div>
+                </td>
+                <td style="width: 140px;">
+                    <span class="table-category-badge">${p.modul || p.kategori || 'Genel'}</span>
                 </td>
                 <td>
-                    <div style="font-size: 12px; line-height: 1.4; color: var(--text-muted); max-height: 60px; overflow: hidden; text-overflow: ellipsis;">
-                        ${highlightedIndication}
-                    </div>
+                    <div class="table-indication-text" title="${escapeHtml(p.endikasyon || '')}">${highlightedIndication}</div>
                 </td>
-                <td style="text-align: center;" onclick="event.stopPropagation()">
-                    <div class="table-action-btns">
-                        <button class="table-btn-rx ${isInRx ? 'added' : ''}" onclick="togglePrescriptionItem(${p.id})">
-                            ${isInRx ? '✓ Çıkar' : '+ Ekle'}
-                        </button>
-                        <button class="table-btn-detail" onclick="openDetailModal(${p.id})" title="Detaylı İncele">
-                            👁️
-                        </button>
-                    </div>
+                <td style="width: 90px; text-align: center;">
+                    <span class="table-origin-badge origin-${(p.mensei || 'TR').toLowerCase()}">${p.mensei || 'TR'}</span>
+                </td>
+                <td style="width: 110px; text-align: right;" onclick="event.stopPropagation();">
+                    <button class="table-btn-rx ${isInRx ? 'active' : ''}" onclick="togglePrescriptionItem(${p.id})">
+                        ${isInRx ? '✓ Planda' : '+ Ekle'}
+                    </button>
                 </td>
             </tr>
         `;
     });
 
+    if (currentRenderLimit < totalCount) {
+        html += `
+            <tr class="load-more-row">
+                <td colspan="6" style="text-align: center; padding: 20px;">
+                    <button type="button" class="btn-load-more" onclick="loadMoreProducts()">
+                        Daha Fazla Göster (+${Math.min(PAGE_CHUNK, totalCount - currentRenderLimit)} / Kalan ${totalCount - currentRenderLimit})
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
     tbody.innerHTML = html;
 }
 
-// 2. YENİ TİP MODERN KART GÖRÜNÜMÜ (KART KART)
-function renderProductsGrid(products) {
+// 2. YENİ TİP MODERN KART GÖRÜNÜMÜ (CHUNKED RENDERER)
+function renderProductsGrid(products, isIncremental = false) {
     const grid = document.getElementById('productsGrid');
     if (!grid) return;
 
@@ -1480,85 +1058,68 @@ function renderProductsGrid(products) {
             <div class="empty-state-card" style="grid-column: 1 / -1;">
                 <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
                 <h3 style="font-size: 18px; color: var(--text-heading); margin-bottom: 8px;">Eşleşen Takviye Bulunamadı</h3>
-                <p style="font-size: 13.5px; color: var(--text-muted); max-width: 480px; margin: 0 auto;">
-                    Arama kriterlerinizi değiştirerek tekrar deneyebilirsiniz.
-                </p>
+                <p style="font-size: 13.5px; color: var(--text-muted); max-width: 480px; margin: 0 auto;">Arama filtrenizi temizleyip farklı anahtar kelimelerle arama yapabilirsiniz.</p>
             </div>
         `;
         return;
     }
 
+    const totalCount = products.length;
+    const visibleProducts = products.slice(0, currentRenderLimit);
+
     let html = '';
-    products.forEach(p => {
+    visibleProducts.forEach(p => {
         const isInRx = prescriptionList.some(r => r.id === p.id);
-        const chips = parseIngredientChips(p.icerik);
-        
-        let chipsHtml = '';
-        chips.forEach(c => {
-            const isMatched = isChipSearchMatch(c.full, searchQuery);
-            const matchedClass = isMatched ? 'search-matched' : '';
-            const highlightedChip = highlightMatch(c.full, searchQuery);
-            chipsHtml += `
-                <span class="ing-chip-item ${matchedClass}" onclick="onChipClick('${c.full.replace(/'/g, "\\'")}', event)" title="Bu etken maddeyi filtrele">
-                    ⚡ ${highlightedChip}
-                </span>
-            `;
-        });
-
-        let dosageBadgeHtml = '';
-        if (p._active_dosage && p._active_dosage.rawStr) {
-            dosageBadgeHtml = `
-                <div class="badge-dosage-spotlight">
-                    ⭐ ${p._active_dosage.rawStr}
-                </div>
-            `;
-        }
-
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
+        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
 
+        const hasImg = p.gorsel && p.gorsel.trim();
+        const imgEl = hasImg
+            ? `<img src="${p.gorsel}" alt="${p.urunAdi}" onerror="this.onerror=null; this.src='https://placehold.co/400x400/E8F5E9/0D5C3A?text=LaraHealth';">`
+            : `<div class="card-no-img"><span>💊</span></div>`;
+
+        let dosageHtml = '';
+        if (p._active_dosage && p._active_dosage.rawStr) {
+            dosageHtml = `<div class="card-active-dosage">⭐ ${p._active_dosage.rawStr}</div>`;
+        }
+
+        const tierBadge = p._purityTier === 1 
+            ? `<div style="font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">✨ SAF FORMÜL</div>`
+            : (p._purityTier === 2 ? `<div style="font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">⚡ SİNERJİK</div>` : '');
+
         html += `
-            <div class="product-card">
-                <div class="card-header">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
-                            <span class="card-brand">${p.marka || 'LARAHEALTH'}</span>
-                            ${searchQuery && p._purityTier === 1 ? '<span class="badge-tier-pure">✨ Saf Formül</span>' : ''}
-                            ${searchQuery && p._purityTier === 2 ? '<span class="badge-tier-synergy">⚡ Sinerji</span>' : ''}
-                            ${searchQuery && p._purityTier === 3 ? '<span class="badge-tier-complex">🌿 Kompleks</span>' : ''}
-                        </div>
-                        <div class="card-title">${highlightedTitle}</div>
-                    </div>
-                    <span class="badge-mensei ${p.mensei === 'TR' ? 'badge-mensei-tr' : 'badge-mensei-abd'}">
-                        ${p.mensei === 'TR' ? '🇹🇷 TR' : '🇺🇸 ABD'}
-                    </span>
+            <div class="product-card" onclick="openDetailModal(${p.id})">
+                <div class="card-img-wrap">
+                    ${imgEl}
+                    <span class="card-origin-pill origin-${(p.mensei || 'TR').toLowerCase()}">${p.mensei || 'TR'}</span>
                 </div>
-
                 <div class="card-body">
-                    ${dosageBadgeHtml}
-                    <div class="card-ingredients">
-                        <div class="card-section-label">Etken Maddeler:</div>
-                        <div class="ingredient-chips-list">
-                            ${chipsHtml}
-                        </div>
+                    ${tierBadge}
+                    <div class="card-category">${p.modul || p.kategori || 'Klinik Destek'}</div>
+                    <div class="card-title">${highlightedTitle}</div>
+                    <div class="card-brand">${highlightedBrand}</div>
+                    ${dosageHtml}
+                    <div class="card-indication">${highlightedIndication}</div>
+                    <div class="card-footer">
+                        <button class="card-btn-rx ${isInRx ? 'active' : ''}" onclick="event.stopPropagation(); togglePrescriptionItem(${p.id});">
+                            ${isInRx ? '✓ Plandan Çıkar' : '+ Plana Ekle'}
+                        </button>
                     </div>
-
-                    <div class="card-indication" title="${p.endikasyon || ''}">
-                        <strong>Klinik Amaç:</strong> ${highlightedIndication}
-                    </div>
-                </div>
-
-                <div class="card-actions">
-                    <button class="btn-card-detail" onclick="openDetailModal(${p.id})">
-                        Detaylı İncele 📸
-                    </button>
-                    <button class="btn-card-rx ${isInRx ? 'added' : ''}" onclick="togglePrescriptionItem(${p.id})">
-                        ${isInRx ? '✓ Planda' : '+ Plana Ekle'}
-                    </button>
                 </div>
             </div>
         `;
     });
+
+    if (currentRenderLimit < totalCount) {
+        html += `
+            <div class="load-more-wrap">
+                <button type="button" class="btn-load-more" onclick="loadMoreProducts()">
+                    Daha Fazla Göster (+${Math.min(PAGE_CHUNK, totalCount - currentRenderLimit)} / Kalan ${totalCount - currentRenderLimit})
+                </button>
+            </div>
+        `;
+    }
 
     grid.innerHTML = html;
 }
@@ -2220,7 +1781,7 @@ function renderRxDrawerBody() {
                            onchange="prescriptionList[${idx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)">
                 </td>
                 <td style="width: 12%;">
-                    <input type="text" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
+                    <input type="text" id="rxZamanInput_${idx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
                            onchange="prescriptionList[${idx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman (Sabah/Öğle/Akşam/Yatmadan)">
                 </td>
                 <td style="width: 14%;">
@@ -2289,6 +1850,34 @@ function renderRxDrawerBody() {
     container.innerHTML = headerDocHtml + planContentHtml + renderReadyProtocolsHtml();
 }
 
+const SLOT_KEYS = ['sabah', 'ogle', 'aksam', 'yatmadan'];
+const SLOT_LABELS = {
+    sabah: 'SABAH',
+    ogle: 'ÖĞLE',
+    aksam: 'AKŞAM',
+    yatmadan: 'YATMADAN'
+};
+const SLOT_ICONS = {
+    sabah: '🌅',
+    ogle: '☀️',
+    aksam: '🌙',
+    yatmadan: '🛌'
+};
+const SLOT_NAMES_TR = {
+    sabah: 'Sabah',
+    ogle: 'Öğle',
+    aksam: 'Akşam',
+    yatmadan: 'Yatmadan'
+};
+
+function getItemScheduleSlot(item) {
+    const z = (item.zaman || '').toLowerCase();
+    if (z.includes('öğle') || z.includes('ogle')) return 'ogle';
+    if (z.includes('akşam') || z.includes('aksam')) return 'aksam';
+    if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) return 'yatmadan';
+    return 'sabah';
+}
+
 function buildDailyScheduleHtml(items) {
     const schedule = {
         sabah: [],
@@ -2297,38 +1886,48 @@ function buildDailyScheduleHtml(items) {
         yatmadan: []
     };
 
-    items.forEach(item => {
-        const z = (item.zaman || '').toLowerCase();
-        const entry = {
+    items.forEach((item, idx) => {
+        const slot = getItemScheduleSlot(item);
+        schedule[slot].push({
+            idx: idx,
+            item: item,
             name: item.urunAdi,
-            detail: (item.doz || '1 kapsül') + ' · ' + (item.kullanim || 'yemekle')
-        };
-
-        if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-            schedule.sabah.push(entry);
-        } else if (z.includes('öğle') || z.includes('ogle')) {
-            schedule.ogle.push(entry);
-        } else if (z.includes('akşam') || z.includes('aksam')) {
-            schedule.aksam.push(entry);
-        } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-            schedule.yatmadan.push(entry);
-        } else {
-            schedule.sabah.push(entry);
-        }
+            detail: (item.doz || '1 x 1 kapsül') + ' · ' + (item.kullanim || 'yemekle')
+        });
     });
 
-    function renderCard(title, list) {
+    function renderColumn(colKey) {
+        const title = SLOT_LABELS[colKey];
+        const icon = SLOT_ICONS[colKey];
+        const list = schedule[colKey];
         let inner = '';
         if (list.length === 0) {
-            inner = '<div class="schedule-empty-dash">—</div>';
+            inner = '<div class="schedule-empty-dash" title="Bu vakte takviye taşıyabilirsiniz">—</div>';
         } else {
-            list.forEach(it => {
+            list.forEach(entry => {
+                const it = entry.item;
+                const i = entry.idx;
                 inner += `
-                    <div class="schedule-item-pill">
-                        <span class="check-box">☐</span>
-                        <div>
-                            <div style="font-weight: 700; color: #111827;">${it.name}</div>
-                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${it.detail}</div>
+                    <div class="schedule-item-pill" draggable="true" 
+                         ondragstart="handleScheduleDragStart(event, ${i}, '${colKey}')"
+                         ondragend="handleScheduleDragEnd(event)"
+                         data-rx-idx="${i}" data-slot="${colKey}">
+                        <div class="schedule-drag-grip" title="Sürükleyip başka zamana bırakın">⋮⋮</div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;">
+                                <div style="font-weight: 700; color: #111827; font-size: 12.5px; line-height: 1.3;" title="${escapeHtml(it.urunAdi)}">${escapeHtml(it.urunAdi)}</div>
+                            </div>
+                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${escapeHtml(entry.detail)}</div>
+                            <div class="schedule-pill-controls" onclick="event.stopPropagation();">
+                                <button type="button" class="btn-slot-step" onclick="moveScheduleItemSlot(${i}, -1)" title="Önceki zamana taşı" ${colKey === 'sabah' ? 'disabled' : ''}>◀</button>
+                                <select class="schedule-slot-select" onchange="changeScheduleItemSlot(${i}, this.value)" title="Kullanım vaktini değiştir">
+                                    <option value="sabah" ${colKey === 'sabah' ? 'selected' : ''}>🌅 Sabah</option>
+                                    <option value="ogle" ${colKey === 'ogle' ? 'selected' : ''}>☀️ Öğle</option>
+                                    <option value="aksam" ${colKey === 'aksam' ? 'selected' : ''}>🌙 Akşam</option>
+                                    <option value="yatmadan" ${colKey === 'yatmadan' ? 'selected' : ''}>🛌 Yatmadan</option>
+                                </select>
+                                <button type="button" class="btn-slot-step" onclick="moveScheduleItemSlot(${i}, 1)" title="Sonraki zamana taşı" ${colKey === 'yatmadan' ? 'disabled' : ''}>▶</button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2336,8 +1935,16 @@ function buildDailyScheduleHtml(items) {
         }
 
         return `
-            <div class="schedule-slot-card">
-                <div class="schedule-slot-header">${title}</div>
+            <div class="schedule-slot-card" 
+                 ondragover="handleScheduleDragOver(event)" 
+                 ondragenter="handleScheduleDragEnter(event, '${colKey}')" 
+                 ondragleave="handleScheduleDragLeave(event)" 
+                 ondrop="handleScheduleDrop(event, '${colKey}')"
+                 data-col="${colKey}">
+                <div class="schedule-slot-header">
+                    <span>${icon} ${title}</span>
+                    <span class="schedule-slot-badge">${list.length}</span>
+                </div>
                 <div class="schedule-slot-content">${inner}</div>
             </div>
         `;
@@ -2345,12 +1952,89 @@ function buildDailyScheduleHtml(items) {
 
     return `
         <div class="schedule-cards-grid">
-            ${renderCard('SABAH', schedule.sabah)}
-            ${renderCard('ÖĞLE', schedule.ogle)}
-            ${renderCard('AKŞAM', schedule.aksam)}
-            ${renderCard('YATMADAN', schedule.yatmadan)}
+            ${renderColumn('sabah')}
+            ${renderColumn('ogle')}
+            ${renderColumn('aksam')}
+            ${renderColumn('yatmadan')}
         </div>
     `;
+}
+
+let draggedRxIndex = null;
+let draggedSourceSlot = null;
+
+function handleScheduleDragStart(e, rxIndex, slotKey) {
+    draggedRxIndex = rxIndex;
+    draggedSourceSlot = slotKey;
+    if (e.dataTransfer) {
+        e.dataTransfer.setData('text/plain', String(rxIndex));
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    const pill = e.currentTarget;
+    if (pill) {
+        setTimeout(() => pill.classList.add('is-dragging'), 0);
+    }
+}
+
+function handleScheduleDragEnd(e) {
+    draggedRxIndex = null;
+    draggedSourceSlot = null;
+    document.querySelectorAll('.schedule-item-pill.is-dragging').forEach(el => el.classList.remove('is-dragging'));
+    document.querySelectorAll('.schedule-slot-card.schedule-drop-target-active').forEach(el => el.classList.remove('schedule-drop-target-active'));
+}
+
+function handleScheduleDragOver(e) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+    }
+}
+
+function handleScheduleDragEnter(e, colKey) {
+    e.preventDefault();
+    const colCard = e.currentTarget;
+    if (colCard && colCard.classList) {
+        colCard.classList.add('schedule-drop-target-active');
+    }
+}
+
+function handleScheduleDragLeave(e) {
+    const colCard = e.currentTarget;
+    if (colCard && colCard.classList && !colCard.contains(e.relatedTarget)) {
+        colCard.classList.remove('schedule-drop-target-active');
+    }
+}
+
+function handleScheduleDrop(e, targetSlotKey) {
+    e.preventDefault();
+    document.querySelectorAll('.schedule-slot-card.schedule-drop-target-active').forEach(el => el.classList.remove('schedule-drop-target-active'));
+    if (draggedRxIndex !== null && prescriptionList[draggedRxIndex]) {
+        changeScheduleItemSlot(draggedRxIndex, targetSlotKey);
+    }
+}
+
+function changeScheduleItemSlot(rxIndex, targetSlotKey) {
+    if (!prescriptionList[rxIndex]) return;
+    const newSlotName = SLOT_NAMES_TR[targetSlotKey] || 'Sabah';
+    prescriptionList[rxIndex].zaman = newSlotName;
+    
+    // Update table input if rendered
+    const inputEl = document.getElementById(`rxZamanInput_${rxIndex}`);
+    if (inputEl) {
+        inputEl.value = newSlotName;
+    }
+    
+    // Re-render schedule
+    renderDailyScheduleOnly();
+}
+
+function moveScheduleItemSlot(rxIndex, direction) {
+    if (!prescriptionList[rxIndex]) return;
+    const currentSlot = getItemScheduleSlot(prescriptionList[rxIndex]);
+    let currIdx = SLOT_KEYS.indexOf(currentSlot);
+    if (currIdx === -1) currIdx = 0;
+    const newIdx = Math.max(0, Math.min(SLOT_KEYS.length - 1, currIdx + direction));
+    changeScheduleItemSlot(rxIndex, SLOT_KEYS[newIdx]);
 }
 
 function renderDailyScheduleOnly() {

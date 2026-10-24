@@ -1709,24 +1709,27 @@
             }
         }
 
+        /* Interactive Drag & Drop Schedule Styling */
         .schedule-slot-card {
             background: #FFFFFF;
             border: 1.5px solid #E5E7EB;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 12px 14px;
-            min-height: 115px;
+            min-height: 140px;
             display: flex;
             flex-direction: column;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .schedule-slot-card:hover {
-            border-color: #CBD5E1;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        .schedule-slot-card.schedule-drop-target-active {
+            border: 2px dashed #059669 !important;
+            background: #F0FDF4 !important;
+            box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15) !important;
+            transform: scale(1.01);
         }
 
         .schedule-slot-header {
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 800;
             color: #0D5C3A;
             letter-spacing: 0.8px;
@@ -1735,40 +1738,151 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #F3F4F6;
-            padding-bottom: 5px;
+            border-bottom: 1px solid #F1F5F9;
+            padding-bottom: 6px;
         }
 
-        .schedule-slot-content {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
+        .schedule-slot-badge {
+            background: #E8F5E9;
+            color: #0D5C3A;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
         }
 
         .schedule-item-pill {
-            background: #F9FAFB;
-            border: 1px solid #E5E7EB;
-            border-radius: 6px;
-            padding: 6px 8px;
-            font-size: 11.5px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
             display: flex;
             align-items: flex-start;
-            gap: 7px;
+            gap: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            cursor: grab;
+            user-select: none;
+            transition: all 0.15s ease;
         }
 
-        .schedule-item-pill .check-box {
-            font-size: 14px;
-            color: #4B5563;
+        .schedule-item-pill:hover {
+            border-color: #0D5C3A;
+            box-shadow: 0 4px 10px rgba(13, 92, 58, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .schedule-item-pill:active {
+            cursor: grabbing;
+        }
+
+        .schedule-item-pill.is-dragging {
+            opacity: 0.35;
+            transform: scale(0.96);
+            border: 2px dashed #0D5C3A;
+            background: #F0FDF4;
+        }
+
+        .schedule-drag-grip {
+            color: #94A3B8;
+            font-size: 13px;
+            cursor: grab;
             line-height: 1;
-            margin-top: 1px;
+            margin-top: 2px;
+            padding-right: 2px;
+            letter-spacing: -1px;
+        }
+
+        .schedule-pill-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 6px;
+            padding-top: 5px;
+            border-top: 1px dashed #E2E8F0;
+        }
+
+        .btn-slot-step {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            border: 1px solid #CBD5E1;
+            background: #F8FAFC;
+            color: #334155;
+            font-size: 9px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            padding: 0;
+        }
+
+        .btn-slot-step:hover:not(:disabled) {
+            background: #0D5C3A;
+            color: #FFFFFF;
+            border-color: #0D5C3A;
+        }
+
+        .btn-slot-step:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            background: #F1F5F9;
+            border-color: #E2E8F0;
+        }
+
+        .schedule-slot-select {
+            flex: 1;
+            min-width: 0;
+            height: 22px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #1E293B;
+            background: #F8FAFC;
+            border: 1px solid #CBD5E1;
+            border-radius: 5px;
+            padding: 0 4px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .schedule-slot-select:hover, .schedule-slot-select:focus {
+            border-color: #0D5C3A;
+            background: #FFFFFF;
         }
 
         .schedule-empty-dash {
-            color: #9CA3AF;
-            font-size: 20px;
+            color: #CBD5E1;
+            font-size: 24px;
             font-weight: 300;
             margin: auto;
+            padding: 16px 0;
+            text-align: center;
+        }
+
+        /* Load More Button & Infinite Pagination */
+        .load-more-wrap {
+            text-align: center;
+            padding: 24px 16px;
+            grid-column: 1 / -1;
+        }
+        .btn-load-more {
+            background: linear-gradient(135deg, #0D5C3A 0%, #073822 100%);
+            color: #FFFDFB;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 24px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(13, 92, 58, 0.25);
+            transition: all 0.2s ease;
+        }
+        .btn-load-more:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(13, 92, 58, 0.35);
         }
 
         /* Plan Footer */
@@ -2018,6 +2132,92 @@
     font-size: 11px;
     color: #7f8c8d;
     font-style: italic;
+}
+
+
+/* Performance & Lazy Loading Optimization */
+.load-more-wrap {
+    text-align: center;
+    padding: 24px 16px;
+    grid-column: 1 / -1;
+}
+.btn-load-more {
+    background: linear-gradient(135deg, #0D5C3A 0%, #073822 100%);
+    color: #FFFDFB;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 24px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(13, 92, 58, 0.25);
+    transition: all 0.2s ease;
+}
+.btn-load-more:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(13, 92, 58, 0.35);
+}
+.header-btn-lock {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #E2E8F0;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.header-btn-lock:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #FCA5A5;
+}
+
+
+/* Performance & Lazy Loading Optimization */
+.load-more-wrap {
+    text-align: center;
+    padding: 24px 16px;
+    grid-column: 1 / -1;
+}
+.btn-load-more {
+    background: linear-gradient(135deg, #0D5C3A 0%, #073822 100%);
+    color: #FFFDFB;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 24px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(13, 92, 58, 0.25);
+    transition: all 0.2s ease;
+}
+.btn-load-more:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(13, 92, 58, 0.35);
+}
+.header-btn-lock {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #E2E8F0;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.header-btn-lock:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #FCA5A5;
 }
 
 
