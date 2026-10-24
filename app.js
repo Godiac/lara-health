@@ -161,6 +161,25 @@ window.addEventListener('keydown', (e) => {
 });
 
 
+const NUTRIENT_FAMILIES = [
+    { key: 'mg', pattern: /\b(magnezyum|magnesium|bisglisinat|malat|taurat|sitrat|l-treonat|threonate)\b/i },
+    { key: 'b12', pattern: /\b(b12|metilkobalamin|adenozilkobalamin|hidroksokobalamin|siyanokobalamin|kobalamin|mecobalactive)\b/i },
+    { key: 'folat', pattern: /\b(folat|folic\s*acid|folik\s*asit|5-mthf|quatrefolic|metilfolat)\b/i },
+    { key: 'b6', pattern: /\b(b6|piridoksal|p-5-p|p5p|pyridoxine|piridoksin)\b/i },
+    { key: 'b_other', pattern: /\b(b1\b|tiamin|benfotiamin|b2\b|riboflavin|b3\b|niasin|niasinamid|b5\b|pantotenik|b7\b|biotin|biyotin)\b/i },
+    { key: 'd3', pattern: /\b(d3|vitamin\s*d|d\s*vitamini|kolekalsiferol|cholecalciferol)\b/i },
+    { key: 'k2', pattern: /\b(k2|k1|vitamin\s*k|mk-7|mk7|menakinon|\+\s*k\b)\b/i },
+    { key: 'c', pattern: /\b(c\s*vitamini|vitamin\s*c|askorbik|ascorbic|ester-c)\b/i },
+    { key: 'zinc', pattern: /\b(çinko|zinc|pikolinat)\b/i },
+    { key: 'iron', pattern: /\b(demir|iron|ferrit|fumarat)\b/i },
+    { key: 'calcium', pattern: /\b(kalsiyum|calcium)\b/i },
+    { key: 'potassium', pattern: /\b(potasyum|potassium)\b/i },
+    { key: 'coq10', pattern: /\b(coq10|koenzim\s*q10|ubikinon|ubiquinol)\b/i },
+    { key: 'glutathione', pattern: /\b(glutatyon|glutathione|setria)\b/i },
+    { key: 'omega', pattern: /\b(omega\s*3|balık\s*yağı|epa\b|dha\b|krill)\b/i },
+    { key: 'probiotic', pattern: /\b(probiyotik|probiotic|lactobacillus|bifidobacterium|akkermansia)\b/i }
+];
+
 
 function initProductSearchIndex() {
     if (typeof ALL_PRODUCTS === 'undefined' || !Array.isArray(ALL_PRODUCTS)) return;
