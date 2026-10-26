@@ -247,6 +247,9 @@ function getPurityTier(product, queryTerm, aliases = []) {
 let currentOrigin = 'ALL';
 let currentModule = 'HEPSI';
 let searchQuery = '';
+let searchQuery1 = '';
+let searchQuery2 = '';
+let searchExclude = '';
 let activeRankingIngredient = null;
 let activeModalProduct = null;
 let currentViewMode = 'table'; // Varsayılan: Eski tip klasik liste (satır satır)
@@ -464,34 +467,37 @@ function getClinicalQueryIntent(query) {
     return null;
 }
 
-// SMART SEARCH HIGHLIGHT FUNCTION
-function highlightMatch(text, query) {
+// SMART SEARCH HIGHLIGHT FUNCTION (DUAL FIELD SUPPORT)
+function highlightMatch(text, query1, query2) {
     if (!text) return '';
-    if (!query || !query.trim()) return String(text);
+    const q1 = (query1 || '').toLowerCase().trim();
+    const q2 = (query2 || '').toLowerCase().trim();
+    if (!q1 && !q2) return String(text);
 
-    const q = query.toLowerCase().trim();
-    const intent = getClinicalQueryIntent(q);
     let terms = [];
+    [q1, q2].forEach(q => {
+        if (!q) return;
+        const intent = getClinicalQueryIntent(q);
+        if (intent) {
+            terms.push(...intent.highlightTerms);
+        } else {
+            const rawTokens = q.split(/\s+/).filter(t => t.length > 0);
+            const meaningfulTokens = rawTokens.filter(t => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(t));
+            const activeTokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
 
-    if (intent) {
-        terms = intent.highlightTerms;
-    } else {
-        const rawTokens = q.split(/\s+/).filter(t => t.length > 0);
-        const meaningfulTokens = rawTokens.filter(t => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(t));
-        const activeTokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
-
-        terms.push(q);
-        activeTokens.forEach(t => {
-            if (t.length > 1 || ['b', 'c', 'd', 'k', 'e', 'a'].includes(t)) {
-                terms.push(t);
+            terms.push(q);
+            activeTokens.forEach(t => {
+                if (t.length > 1 || ['b', 'c', 'd', 'k', 'e', 'a'].includes(t)) {
+                    terms.push(t);
+                }
+            });
+            const matchedIng = matchQueryToIngredient(q);
+            if (matchedIng) {
+                terms.push(matchedIng.name.toLowerCase());
+                matchedIng.aliases.forEach(a => terms.push(a.toLowerCase()));
             }
-        });
-        const matchedIng = matchQueryToIngredient(q);
-        if (matchedIng) {
-            terms.push(matchedIng.name.toLowerCase());
-            matchedIng.aliases.forEach(a => terms.push(a.toLowerCase()));
         }
-    }
+    });
 
     terms = [...new Set(terms)].filter(t => t.length > 0).sort((a, b) => b.length - a.length);
     if (terms.length === 0) return String(text);
@@ -502,26 +508,29 @@ function highlightMatch(text, query) {
     return String(text).replace(regexPattern, '<mark class="rx-search-hl">$1</mark>');
 }
 
-function isChipSearchMatch(chipText, q) {
-    if (!chipText || !q) return false;
-    const t = chipText.toLowerCase();
-    const query = q.toLowerCase().trim();
-    const intent = getClinicalQueryIntent(query);
+function isChipSearchMatch(chipText, query1, query2) {
+    if (!chipText) return false;
+    const q1 = (query1 || '').toLowerCase().trim();
+    const q2 = (query2 || '').toLowerCase().trim();
+    if (!q1 && !q2) return false;
 
-    if (intent) {
-        return intent.filterRegex.test(t);
-    }
+    const checkOne = (q) => {
+        if (!q) return false;
+        const t = chipText.toLowerCase();
+        const intent = getClinicalQueryIntent(q);
+        if (intent) return intent.filterRegex.test(t);
 
-    const rawTokens = query.split(/\s+/).filter(x => x.length > 0);
-    const meaningfulTokens = rawTokens.filter(x => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(x));
-    const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
+        const rawTokens = q.split(/\s+/).filter(x => x.length > 0);
+        const meaningfulTokens = rawTokens.filter(x => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(x));
+        const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
 
-    return tokens.some(tok => {
-        if (tok.length === 1) {
-            return new RegExp('\\b' + tok + '\\b', 'i').test(t);
-        }
-        return t.includes(tok);
-    });
+        return tokens.some(tok => {
+            if (tok.length === 1) return new RegExp('\\b' + tok + '\\b', 'i').test(t);
+            return t.includes(tok);
+        });
+    };
+
+    return checkOne(q1) || checkOne(q2);
 }
 
 function matchQueryToIngredient(q) {
@@ -636,75 +645,83 @@ function filterAndSortProducts() {
         list = list.filter(p => isModuleMatch(p, currentModule));
     }
 
-    // 3. Search query filter
+    // 3. Search query filter (Dual Slot & Exclusion Engine)
     let targetSortAliases = null;
     let targetSortLabel = '';
     let targetUnitType = 'mass';
 
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase().trim();
-        const intent = getClinicalQueryIntent(q);
+    const q1 = (searchQuery1 || '').toLowerCase().trim();
+    const q2 = (searchQuery2 || '').toLowerCase().trim();
+    const qEx = (searchExclude || '').toLowerCase().trim();
 
-        if (intent) {
-            list = list.filter(p => {
-                const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.icerik || '')).toLowerCase();
-                const fullText = (titleAndIcerik + ' ' + (p.tags || '')).toLowerCase();
-                
-                // 1. Must match intent regex in product title, ingredient formulation or tags
-                if (!intent.filterRegex.test(fullText)) {
-                    return false;
-                }
+    if (q1 || q2 || qEx) {
+        const intent1 = q1 ? getClinicalQueryIntent(q1) : null;
+        const intent2 = q2 ? getClinicalQueryIntent(q2) : null;
+        const primaryIntent = intent1 || intent2;
 
-                // 2. Exclude negative assertions (e.g. "B12 ve Folat içermez", "Demir içermez", "B12 Free", "Minus")
+        function checkTermMatch(p, query, intent) {
+            if (!query) return true;
+            const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.icerik || '')).toLowerCase();
+            const fullText = (titleAndIcerik + ' ' + (p.marka || '') + ' ' + (p.tags || '') + ' ' + (p.endikasyon || '')).toLowerCase();
+
+            if (intent) {
+                if (!intent.filterRegex.test(fullText)) return false;
+
                 const aliases = intent.sortAliases || intent.highlightTerms;
                 const negPattern = '\\b(' + aliases.map(escapeRegex).join('|') + ')\\b[^.!?\\n]{0,30}?(içermez|bulunmaz|yoktur|free|minus)';
-                if (new RegExp(negPattern, 'i').test(titleAndIcerik)) {
-                    return false;
-                }
+                if (new RegExp(negPattern, 'i').test(titleAndIcerik)) return false;
 
-                // 3. Exclude if the term ONLY appears as an absorption mention (e.g. "B12 emilimi desteği")
                 const emilimPattern = '\\b(' + aliases.map(escapeRegex).join('|') + ')\\b\\s+(emilimi|emilimini|emilim|desteği)';
                 if (new RegExp(emilimPattern, 'i').test(titleAndIcerik)) {
                     const dos = extractDosage(p, aliases, intent.unitType);
                     if (!dos) return false;
                 }
-
                 return true;
-            });
-            targetSortAliases = intent.sortAliases || intent.highlightTerms;
-            targetSortLabel = intent.family;
-            targetUnitType = intent.unitType || 'mass';
-        } else {
-            const rawTokens = q.split(/\s+/).filter(t => t.length > 0);
+            }
+
+            const rawTokens = query.split(/\s+/).filter(t => t.length > 0);
             const meaningfulTokens = rawTokens.filter(t => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(t));
             const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
 
-            list = list.filter(p => {
-                const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.marka || '') + ' ' + (p.icerik || '')).toLowerCase();
-                const full = (titleAndIcerik + ' ' + (p.endikasyon || '') + ' ' + (p.tags || '')).toLowerCase();
-
-                for (let tok of tokens) {
-                    if (tok.length >= 2) {
-                        const negRe = new RegExp('\\b' + escapeRegex(tok) + '\\b[^.!?\\n]{0,25}?(içermez|bulunmaz|yoktur|free)', 'i');
-                        if (negRe.test(titleAndIcerik)) return false;
-                    }
+            for (let tok of tokens) {
+                if (tok.length >= 2) {
+                    const negRe = new RegExp('\\b' + escapeRegex(tok) + '\\b[^.!?\\n]{0,25}?(içermez|bulunmaz|yoktur|free)', 'i');
+                    if (negRe.test(titleAndIcerik)) return false;
                 }
+            }
 
-                return tokens.every(token => {
-                    if (token.length === 1) {
-                        return new RegExp('\\b' + token + '\\b', 'i').test(full);
-                    }
-                    return full.includes(token);
-                });
+            return tokens.every(token => {
+                if (token.length === 1) {
+                    return new RegExp('\\b' + token + '\\b', 'i').test(fullText);
+                }
+                return fullText.includes(token);
             });
+        }
 
-            const matchedIng = matchQueryToIngredient(q);
+        list = list.filter(p => {
+            if (!checkTermMatch(p, q1, intent1)) return false;
+            if (!checkTermMatch(p, q2, intent2)) return false;
+
+            if (qEx) {
+                const fullText = ((p.urunAdi || '') + ' ' + (p.icerik || '') + ' ' + (p.marka || '') + ' ' + (p.tags || '')).toLowerCase();
+                if (fullText.includes(qEx)) return false;
+            }
+            return true;
+        });
+
+        if (primaryIntent) {
+            targetSortAliases = primaryIntent.sortAliases || primaryIntent.highlightTerms;
+            targetSortLabel = primaryIntent.family;
+            targetUnitType = primaryIntent.unitType || 'mass';
+        } else {
+            const rawTokens = [...q1.split(/\s+/), ...q2.split(/\s+/)].filter(t => t.length > 0);
+            const matchedIng = (q1 && matchQueryToIngredient(q1)) || (q2 && matchQueryToIngredient(q2));
             if (matchedIng) {
                 targetSortAliases = matchedIng.aliases;
                 targetSortLabel = matchedIng.label;
             } else {
-                targetSortAliases = tokens;
-                targetSortLabel = q;
+                targetSortAliases = rawTokens;
+                targetSortLabel = [q1, q2].filter(Boolean).join(' + ');
             }
         }
     } else if (activeRankingIngredient) {
@@ -752,9 +769,18 @@ function filterAndSortProducts() {
 
         const indicator = document.getElementById('activeSortIndicator');
         if (indicator) {
-            let label = targetSortLabel || searchQuery;
+            let label = targetSortLabel || [q1, q2].filter(Boolean).join(' + ') || searchQuery;
             if (label === 'COQ10') label = 'Koenzim Q10 / CoQ10 / Ubiquinol';
-            indicator.innerHTML = '⚡ Akıllı Klinik Sıralama: <strong>' + label + '</strong> &mdash; <span style="color:#059669; font-weight:700;">✨ Saf / Tekil Formüller En Üstte</span> &rarr; <span style="color:#2563eb; font-weight:600;">⚡ Sinerjik Formüller</span> &rarr; <span style="color:#6b7280;">🌿 Kompleks Karışımlar</span> (Dozaj Azalan)';
+            if (label === 'D_VITAMIN') label = 'D Vitamini Ailesi';
+            if (label === 'B12_VITAMIN') label = 'B12 Vitamini (Aktif Metilkobalamin)';
+            if (label === 'MAGNESIUM') label = 'Magnezyum Formülasyonları';
+            if (label === 'AKKERMANSIA') label = 'Akkermansia Muciniphila';
+
+            let extraInfo = '';
+            if (q1 && q2) extraInfo = ' (1. Kelime: "' + q1 + '" + 2. Kelime: "' + q2 + '")';
+            if (qEx) extraInfo += ' [Dışlanan: "' + qEx + '"]';
+
+            indicator.innerHTML = '⚡ Akıllı Klinik Arama: <strong>' + label + extraInfo + '</strong> &mdash; <span style="color:#059669; font-weight:700;">✨ Saf / Tekil Formüller En Üstte</span> &rarr; <span style="color:#2563eb; font-weight:600;">⚡ Sinerjik Formüller</span> &rarr; <span style="color:#6b7280;">🌿 Kompleks Karışımlar</span> (Dozaj Azalan)';
         }
     } else {
         list.forEach(p => {
@@ -835,11 +861,14 @@ function selectCarouselIngredient(name) {
     }
 
     activeRankingIngredient = item;
+    searchQuery1 = item.name;
+    searchQuery2 = '';
     searchQuery = item.name;
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = item.name;
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) clearBtn.style.display = 'block';
+    const input1 = document.getElementById('mainSearchInput');
+    if (input1) input1.value = item.name;
+    const input2 = document.getElementById('secondSearchInput');
+    if (input2) input2.value = '';
+    updateClearButtons();
 
     currentModule = 'HEPSI';
     document.querySelectorAll('.module-tab').forEach(b => {
@@ -872,9 +901,18 @@ function renderRankingBanner() {
 
 function clearActiveRanking() {
     activeRankingIngredient = null;
+    searchQuery1 = '';
+    searchQuery2 = '';
+    searchExclude = '';
     searchQuery = '';
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = '';
+    const input1 = document.getElementById('mainSearchInput');
+    if (input1) input1.value = '';
+    const input2 = document.getElementById('secondSearchInput');
+    if (input2) input2.value = '';
+    const inputEx = document.getElementById('excludeSearchInput');
+    if (inputEx) inputEx.value = '';
+    updateClearButtons();
+    currentRenderLimit = PAGE_CHUNK;
     renderAll();
 }
 
@@ -960,40 +998,139 @@ function selectOriginFilter(orig) {
 }
 
 let searchDebounceTimer = null;
-function onSearchInput(val) {
+
+function onSearch1Input(val) {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        executeSearchInput(val);
+        searchQuery1 = (val || '').trim();
+        searchQuery = [searchQuery1, searchQuery2].filter(Boolean).join(' ');
+        if (activeRankingIngredient && (!searchQuery1 || searchQuery1.toLowerCase() !== activeRankingIngredient.name.toLowerCase())) {
+            activeRankingIngredient = null;
+        }
+        updateClearButtons();
+        if ((searchQuery1 || searchQuery2) && currentModule !== 'HEPSI') {
+            currentModule = 'HEPSI';
+            document.querySelectorAll('.module-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.module === 'HEPSI');
+            });
+        }
+        currentRenderLimit = PAGE_CHUNK;
+        renderAll();
     }, 60);
 }
 
-function executeSearchInput(val) {
-    searchQuery = (val || '').trim();
-    if (activeRankingIngredient && (!searchQuery || searchQuery.toLowerCase() !== activeRankingIngredient.name.toLowerCase())) {
-        activeRankingIngredient = null;
-    }
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) {
-        clearBtn.style.display = searchQuery ? 'block' : 'none';
-    }
-    if (searchQuery && currentModule !== 'HEPSI') {
-        currentModule = 'HEPSI';
-        document.querySelectorAll('.module-tab').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.module === 'HEPSI');
-        });
-    }
+function onSearch2Input(val) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        searchQuery2 = (val || '').trim();
+        searchQuery = [searchQuery1, searchQuery2].filter(Boolean).join(' ');
+        updateClearButtons();
+        if ((searchQuery1 || searchQuery2) && currentModule !== 'HEPSI') {
+            currentModule = 'HEPSI';
+            document.querySelectorAll('.module-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.module === 'HEPSI');
+            });
+        }
+        currentRenderLimit = PAGE_CHUNK;
+        renderAll();
+    }, 60);
+}
+
+function onSearchExcludeInput(val) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        searchExclude = (val || '').trim();
+        updateClearButtons();
+        currentRenderLimit = PAGE_CHUNK;
+        renderAll();
+    }, 60);
+}
+
+function onSearchInput(val) {
+    onSearch1Input(val);
+}
+
+function clearSearch1() {
+    searchQuery1 = '';
+    searchQuery = [searchQuery1, searchQuery2].filter(Boolean).join(' ');
+    activeRankingIngredient = null;
+    const input1 = document.getElementById('mainSearchInput');
+    if (input1) input1.value = '';
+    updateClearButtons();
+    currentRenderLimit = PAGE_CHUNK;
+    renderAll();
+}
+
+function clearSearch2() {
+    searchQuery2 = '';
+    searchQuery = [searchQuery1, searchQuery2].filter(Boolean).join(' ');
+    const input2 = document.getElementById('secondSearchInput');
+    if (input2) input2.value = '';
+    updateClearButtons();
+    currentRenderLimit = PAGE_CHUNK;
+    renderAll();
+}
+
+function clearSearchEx() {
+    searchExclude = '';
+    const inputEx = document.getElementById('excludeSearchInput');
+    if (inputEx) inputEx.value = '';
+    updateClearButtons();
+    currentRenderLimit = PAGE_CHUNK;
+    renderAll();
+}
+
+function clearAllSearches() {
+    searchQuery1 = '';
+    searchQuery2 = '';
+    searchExclude = '';
+    searchQuery = '';
+    activeRankingIngredient = null;
+
+    const input1 = document.getElementById('mainSearchInput');
+    if (input1) input1.value = '';
+    const input2 = document.getElementById('secondSearchInput');
+    if (input2) input2.value = '';
+    const inputEx = document.getElementById('excludeSearchInput');
+    if (inputEx) inputEx.value = '';
+
+    updateClearButtons();
     currentRenderLimit = PAGE_CHUNK;
     renderAll();
 }
 
 function clearMainSearch() {
-    searchQuery = '';
-    activeRankingIngredient = null;
-    const input = document.getElementById('mainSearchInput');
-    if (input) input.value = '';
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) clearBtn.style.display = 'none';
-    renderAll();
+    clearAllSearches();
+}
+
+function toggleExcludeBox() {
+    const wrap = document.getElementById('searchExcludeWrap');
+    const btn = document.getElementById('btnToggleExclude');
+    if (!wrap) return;
+    if (wrap.style.display === 'none' || !wrap.style.display) {
+        wrap.style.display = 'flex';
+        if (btn) btn.classList.add('active');
+        const inp = document.getElementById('excludeSearchInput');
+        if (inp) inp.focus();
+    } else {
+        wrap.style.display = 'none';
+        if (btn) btn.classList.remove('active');
+        clearSearchEx();
+    }
+}
+
+function updateClearButtons() {
+    const btn1 = document.getElementById('clearSearch1Btn');
+    if (btn1) btn1.style.display = searchQuery1 ? 'block' : 'none';
+
+    const btn2 = document.getElementById('clearSearch2Btn');
+    if (btn2) btn2.style.display = searchQuery2 ? 'block' : 'none';
+
+    const btnEx = document.getElementById('clearSearchExBtn');
+    if (btnEx) btnEx.style.display = searchExclude ? 'block' : 'none';
+
+    const btnAll = document.getElementById('clearAllSearchesBtn');
+    if (btnAll) btnAll.style.display = (searchQuery1 || searchQuery2 || searchExclude) ? 'inline-flex' : 'none';
 }
 
 function clearSearch() {
@@ -1024,9 +1161,9 @@ function renderProductsTable(products, isIncremental = false) {
     let html = '';
     visibleProducts.forEach(p => {
         const isInRx = prescriptionList.some(r => r.id === p.id);
-        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
-        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
-        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
+        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
+        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
+        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
 
         const thumbSrc = p.prospektus_gorsel || p.gorsel;
         const hasImg = thumbSrc && thumbSrc.trim();
@@ -1107,9 +1244,9 @@ function renderProductsGrid(products, isIncremental = false) {
     let html = '';
     visibleProducts.forEach(p => {
         const isInRx = prescriptionList.some(r => r.id === p.id);
-        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery);
-        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery);
-        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery);
+        const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
+        const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
+        const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
 
         const hasImg = p.gorsel && p.gorsel.trim();
         const imgEl = hasImg
@@ -1163,18 +1300,31 @@ function renderProductsGrid(products, isIncremental = false) {
 
 function onChipClick(chipText, event) {
     if (event) event.stopPropagation();
-    const matched = matchQueryToIngredient(chipText);
-    if (matched) {
-        selectCarouselIngredient(matched.name);
+    const cleanName = chipText.split(/\s+[0-9]/)[0].trim();
+    
+    const input1 = document.getElementById('mainSearchInput');
+    const input2 = document.getElementById('secondSearchInput');
+
+    if (!searchQuery1) {
+        searchQuery1 = cleanName;
+        if (input1) input1.value = cleanName;
+    } else if (!searchQuery2 && searchQuery1.toLowerCase() !== cleanName.toLowerCase()) {
+        searchQuery2 = cleanName;
+        if (input2) input2.value = cleanName;
     } else {
-        searchQuery = chipText.split(/\s+/)[0];
-        const input = document.getElementById('mainSearchInput');
-        if (input) input.value = searchQuery;
-        renderAll();
+        searchQuery1 = cleanName;
+        if (input1) input1.value = cleanName;
+        searchQuery2 = '';
+        if (input2) input2.value = '';
     }
+
+    searchQuery = [searchQuery1, searchQuery2].filter(Boolean).join(' ');
+    updateClearButtons();
+    currentRenderLimit = PAGE_CHUNK;
+    renderAll();
+    window.scrollTo({ top: 320, behavior: 'smooth' });
 }
 
-// DETAIL MODAL HANDLERS
 function openDetailModal(id) {
     const p = ALL_PRODUCTS.find(x => x.id === id);
     if (!p) return;

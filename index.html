@@ -99,33 +99,64 @@
         <!-- Search & Intelligence Section -->
         <div class="search-container-card">
             
-            <!-- Search Row & Origin Switcher -->
+            <!-- Search Row & Origin Switcher (Dual Slot 1. Kelime & 2. Kelime) -->
             <div class="search-main-row">
-                <div class="search-box">
+                <!-- 1. Kelime Arama Kutusu -->
+                <div class="search-box search-box-primary">
                     <span class="search-icon">🔍</span>
                     <input type="text" id="mainSearchInput" class="search-input" 
-                           placeholder="Etken madde, takviye veya marka arayın (Örn: Magnezyum, B12, Çinko, Akkermansia)..." 
-                           oninput="onSearchInput(this.value)">
-                    <button id="clearSearchBtn" class="clear-search-btn" onclick="clearMainSearch()" style="display: none;">✕</button>
+                           placeholder="1. Kelime (Örn: Magnezyum, CoQ10, B12, Ocean)..." 
+                           oninput="onSearch1Input(this.value)" autocomplete="off">
+                    <button id="clearSearch1Btn" class="clear-search-btn" onclick="clearSearch1()" style="display: none;" title="1. Kelimeyi Temizle">✕</button>
                 </div>
 
-                <!-- TR vs ABD Origin Filter Toggle -->
-                <div class="origin-filter-group" id="originFilterGroup">
-                    <button class="origin-btn active" data-origin="ALL" id="originAllBtn" onclick="selectOriginFilter('ALL')">
-                        <span>🌐</span>
-                        <span>Tümü</span>
-                        <span class="origin-badge" id="badgeOriginAll">1.568</span>
+                <!-- 2. Kelime Arama Kutusu (Opsiyonel / Sinerji) -->
+                <div class="search-box search-box-secondary">
+                    <span class="search-icon" style="color: #2563EB; font-size: 15px;">➕</span>
+                    <input type="text" id="secondSearchInput" class="search-input" 
+                           placeholder="2. Kelime (Opsiyonel: B6, P5P, Çinko, Marka)..." 
+                           oninput="onSearch2Input(this.value)" autocomplete="off">
+                    <button id="clearSearch2Btn" class="clear-search-btn" onclick="clearSearch2()" style="display: none;" title="2. Kelimeyi Temizle">✕</button>
+                </div>
+
+                <!-- Dışlanacak (İçermesin) Opsiyonel Arama Kutusu -->
+                <div class="search-box search-box-exclude" id="searchExcludeWrap" style="display: none;">
+                    <span class="search-icon" style="color: #DC2626; font-size: 15px;">🚫</span>
+                    <input type="text" id="excludeSearchInput" class="search-input input-exclude" 
+                           placeholder="Dışlanacak (İçermesin)..." 
+                           oninput="onSearchExcludeInput(this.value)" autocomplete="off">
+                    <button id="clearSearchExBtn" class="clear-search-btn" onclick="clearSearchEx()" style="display: none;" title="Dışlanan kelimeyi temizle">✕</button>
+                </div>
+
+                <!-- Kontrol Butonları & TR vs ABD Origin Filter Toggle -->
+                <div class="search-actions-group" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn-toggle-exclude" id="btnToggleExclude" onclick="toggleExcludeBox()" title="İçermesini istemediğiniz bir bileşeni dışlamak için tıklayın">
+                        <span>🚫</span>
+                        <span>Dışla</span>
                     </button>
-                    <button class="origin-btn" data-origin="TR" id="originTrBtn" onclick="selectOriginFilter('TR')">
-                        <span>🇹🇷</span>
-                        <span>Yurt İçi / TR</span>
-                        <span class="origin-badge" id="badgeOriginTr">173</span>
+
+                    <button type="button" id="clearAllSearchesBtn" class="btn-clear-all-search" onclick="clearAllSearches()" style="display: none;" title="Tüm aramaları sıfırla">
+                        <span>✕</span>
+                        <span>Sıfırla</span>
                     </button>
-                    <button class="origin-btn" data-origin="ABD" id="originAbdBtn" onclick="selectOriginFilter('ABD')">
-                        <span>🇺🇸</span>
-                        <span>Yurt Dışı / ABD</span>
-                        <span class="origin-badge" id="badgeOriginAbd">1.395</span>
-                    </button>
+
+                    <div class="origin-filter-group" id="originFilterGroup">
+                        <button class="origin-btn active" data-origin="ALL" id="originAllBtn" onclick="selectOriginFilter('ALL')">
+                            <span>🌐</span>
+                            <span>Tümü</span>
+                            <span class="origin-badge" id="badgeOriginAll">1.695</span>
+                        </button>
+                        <button class="origin-btn" data-origin="TR" id="originTrBtn" onclick="selectOriginFilter('TR')">
+                            <span>🇹🇷</span>
+                            <span>TR</span>
+                            <span class="origin-badge" id="badgeOriginTr">438</span>
+                        </button>
+                        <button class="origin-btn" data-origin="ABD" id="originAbdBtn" onclick="selectOriginFilter('ABD')">
+                            <span>🇺🇸</span>
+                            <span>ABD</span>
+                            <span class="origin-badge" id="badgeOriginAbd">1.257</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -334,7 +365,7 @@
     
     </div>
 
-    <script src="data.js?v=20261026_01"></script>
-    <script src="app.js?v=20261026_01"></script>
+    <script src="data.js?v=20261026_02"></script>
+    <script src="app.js?v=20261026_02"></script>
 </body>
 </html>
