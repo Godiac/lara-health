@@ -174,7 +174,7 @@ const NUTRIENT_FAMILIES = [
     { key: 'iron', pattern: /\b(demir|iron|ferrit|fumarat)\b/i },
     { key: 'calcium', pattern: /\b(kalsiyum|calcium)\b/i },
     { key: 'potassium', pattern: /\b(potasyum|potassium)\b/i },
-    { key: 'coq10', pattern: /\b(coq10|koenzim\s*q10|ubikinon|ubiquinol)\b/i },
+    { key: 'coq10', pattern: /\b(coq10|coq-10|coq\s*10|koenzim\s*q10|koenzim\s*q-10|koenzim\s*q\s*10|coenzyme\s*q10|coenzyme\s*q-10|ubiquinone|ubikinon|ubiquinol|ubikinol|kaneka|ubqh|q-evail|coqnol)\b/i },
     { key: 'glutathione', pattern: /\b(glutatyon|glutathione|setria)\b/i },
     { key: 'omega', pattern: /\b(omega\s*3|balık\s*yağı|epa\b|dha\b|krill)\b/i },
     { key: 'probiotic', pattern: /\b(probiyotik|probiotic|lactobacillus|bifidobacterium|akkermansia)\b/i }
@@ -280,7 +280,7 @@ const CAROUSEL_INGREDIENTS = [
     { name: 'D3 + K2', label: 'D3 + K2 Vitamini', aliases: ['d3k2', 'd3 k2', 'd3+k2', 'd3-k2'] },
     { name: 'K2 Vitamini', label: 'K2 Vitamini', aliases: ['vitamin k2', 'k2 vitamini', 'k2', 'mk-7', 'mk7', 'menakinon'] },
     { name: 'Glutatyon', label: 'Glutatyon (Lipozomal)', aliases: ['glutatyon', 'glutathione', 'setria'] },
-    { name: 'Koenzim Q10', label: 'Koenzim Q10', aliases: ['koenzim q10', 'coq10', 'ubikinon', 'ubikinol'] },
+    { name: 'Koenzim Q10', label: 'Koenzim Q10', aliases: ['koenzim q10', 'koenzim q-10', 'koenzim q 10', 'coq10', 'coq-10', 'coq 10', 'coenzyme q10', 'coenzyme q-10', 'ubiquinone', 'ubikinon', 'ubiquinol', 'ubikinol', 'q10', 'kaneka qh', 'ubqh', 'q-evail', 'coqnol'] },
     { name: 'Berberin', label: 'Berberin', aliases: ['berberin', 'berberine', 'berberis vulgaris'] },
     { name: 'Kollajen', label: 'Kollajen Peptit', aliases: ['kollajen', 'kolajen', 'collagen', 'verisol', 'fortibone'] },
     { name: 'Çinko', label: 'Çinko', aliases: ['çinko', 'zinc', 'pikolinat', 'bisglisinat'] },
@@ -443,6 +443,21 @@ function getClinicalQueryIntent(query) {
             filterRegex: /\b(akkermansia|akkermansia\s*muciniphila)\b/i,
             highlightTerms: ['akkermansia', 'akkermansia muciniphila'],
             sortAliases: ['akkermansia', 'akkermansia muciniphila']
+        };
+    }
+
+    // 8. Koenzim Q10 / CoQ10 / Ubikinon / Ubiquinol Ailesi
+    if (/^(coq10|coq-10|coq\s*10|koenzim\s*q10|koenzim\s*q-10|koenzim\s*q\s*10|coenzyme\s*q10|coenzyme\s*q-10|ubiquinone|ubikinon|ubiquinol|ubikinol|q10)$/i.test(q) ||
+        q.includes('coq10') || q.includes('coq 10') || q.includes('koenzim q10') || q.includes('coenzyme q10') || q.includes('ubikinon') || q.includes('ubiquinone') || q.includes('ubiquinol') || q.includes('ubikinol')) {
+        return {
+            family: 'COQ10',
+            unitType: 'mass',
+            filterRegex: /\b(coq10|coq-10|coq\s*10|koenzim\s*q10|koenzim\s*q-10|koenzim\s*q\s*10|coenzyme\s*q10|coenzyme\s*q-10|ubiquinone|ubikinon|ubiquinol|ubikinol|kaneka|ubqh|q-evail|coqnol)\b/i,
+            highlightTerms: [
+                'koenzim q10', 'koenzim q-10', 'coq10', 'coq-10', 'coenzyme q10', 'coenzyme q-10',
+                'ubikinon', 'ubiquinone', 'ubikinol', 'ubiquinol', 'kaneka qh', 'ubqh', 'q-evail', 'coqnol'
+            ],
+            sortAliases: ['coq10', 'koenzim q10', 'ubiquinol', 'ubikinol', 'ubiquinone', 'ubikinon', 'coenzyme q10']
         };
     }
 
@@ -633,9 +648,10 @@ function filterAndSortProducts() {
         if (intent) {
             list = list.filter(p => {
                 const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.icerik || '')).toLowerCase();
+                const fullText = (titleAndIcerik + ' ' + (p.tags || '')).toLowerCase();
                 
-                // 1. Must match intent regex in product title or ingredient formulation
-                if (!intent.filterRegex.test(titleAndIcerik)) {
+                // 1. Must match intent regex in product title, ingredient formulation or tags
+                if (!intent.filterRegex.test(fullText)) {
                     return false;
                 }
 
@@ -736,7 +752,8 @@ function filterAndSortProducts() {
 
         const indicator = document.getElementById('activeSortIndicator');
         if (indicator) {
-            const label = targetSortLabel || searchQuery;
+            let label = targetSortLabel || searchQuery;
+            if (label === 'COQ10') label = 'Koenzim Q10 / CoQ10 / Ubiquinol';
             indicator.innerHTML = '⚡ Akıllı Klinik Sıralama: <strong>' + label + '</strong> &mdash; <span style="color:#059669; font-weight:700;">✨ Saf / Tekil Formüller En Üstte</span> &rarr; <span style="color:#2563eb; font-weight:600;">⚡ Sinerjik Formüller</span> &rarr; <span style="color:#6b7280;">🌿 Kompleks Karışımlar</span> (Dozaj Azalan)';
         }
     } else {
