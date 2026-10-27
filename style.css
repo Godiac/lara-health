@@ -711,10 +711,17 @@
         .table-btn-rx:hover {
             filter: brightness(1.05);
         }
+        .table-btn-rx.active,
         .table-btn-rx.added {
-            background: var(--navy-primary);
-            color: #ffffff;
-            border-color: var(--navy-primary);
+            background: #F0F4F6;
+            color: #111827;
+            border-color: #869FA8;
+        }
+        .table-btn-rx.active:hover,
+        .table-btn-rx.added:hover {
+            background: #FEE2E2;
+            color: #DC2626;
+            border-color: #F87171;
         }
         .table-btn-detail {
             padding: 6px 8px;
@@ -1212,17 +1219,71 @@
             background: #F8FAFC;
         }
         .rx-btn-remove {
-            background: none;
-            border: none;
-            color: var(--text-soft);
+            background: #FFF1F2;
+            border: 1px solid #FECDD3;
+            color: #E11D48;
             cursor: pointer;
-            font-size: 16px;
-            padding: 2px 6px;
-            border-radius: 4px;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 5px 9px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
         .rx-btn-remove:hover {
-            color: var(--danger);
-            background: var(--danger-light);
+            background: #E11D48;
+            border-color: #BE123C;
+            color: #FFFFFF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(225, 29, 72, 0.25);
+        }
+        .btn-pill-remove {
+            background: #FFF1F2;
+            border: 1px solid #FECDD3;
+            color: #E11D48;
+            border-radius: 5px;
+            width: 20px;
+            height: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            line-height: 1;
+            padding: 0;
+        }
+        .btn-pill-remove:hover {
+            background: #E11D48;
+            color: #FFFFFF;
+            border-color: #BE123C;
+            transform: scale(1.12);
+        }
+        .btn-clear-rx-all {
+            background: #FFF1F2;
+            border: 1px solid #FECDD3;
+            color: #BE123C;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .btn-clear-rx-all:hover {
+            background: #E11D48;
+            border-color: #9F1239;
+            color: #FFFFFF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(225, 29, 72, 0.25);
         }
 
         .rx-drawer-footer {
@@ -2257,6 +2318,8 @@
     border-color: rgba(239, 68, 68, 0.4);
     color: #FCA5A5;
 }
+
+
 
 
 

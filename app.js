@@ -1208,8 +1208,8 @@ function renderProductsTable(products, isIncremental = false) {
                     <span class="table-origin-badge origin-${(p.mensei || 'TR').toLowerCase()}">${p.mensei || 'TR'}</span>
                 </td>
                 <td style="width: 110px; text-align: right;" onclick="event.stopPropagation();">
-                    <button class="table-btn-rx ${isInRx ? 'active' : ''}" onclick="togglePrescriptionItem(${p.id})">
-                        ${isInRx ? '✓ Planda' : '+ Ekle'}
+                    <button class="table-btn-rx ${isInRx ? 'active added' : ''}" onclick="togglePrescriptionItem(${p.id})" title="${isInRx ? 'Bu takviyeyi reçeteden çıkar' : 'Reçeteye ekle'}">
+                        ${isInRx ? '✓ Çıkar' : '+ Ekle'}
                     </button>
                 </td>
             </tr>
@@ -2006,8 +2006,11 @@ function renderRxDrawerBody() {
                     <input type="text" class="plan-input-inline" value="${item.sure || '3 ay'}" 
                            onchange="prescriptionList[${idx}].sure = this.value;" placeholder="Süre (örn: 3 ay)">
                 </td>
-                <td style="width: 4%; text-align: center;">
-                    <button class="rx-btn-remove" onclick="removeRxItem(${idx})" title="Plandan çıkar">✕</button>
+                <td style="width: 8%; text-align: center;">
+                    <button type="button" class="rx-btn-remove" onclick="removeRxItem(${idx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar">
+                        <span>🗑️</span>
+                        <span>Çıkar</span>
+                    </button>
                 </td>
             </tr>
         `;
@@ -2017,20 +2020,32 @@ function renderRxDrawerBody() {
 
     let planContentHtml = `
         <div class="plan-table-wrap">
-            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                <span>📋</span> <span>Takviye Listesi</span>
+            ${rxToastMessage ? `
+            <div class="rx-toast-banner" id="rxToastBanner" style="margin-bottom: 12px; background: #FFF1F2; border: 1.5px solid #FECDD3; color: #BE123C; box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15);">
+                <span style="font-weight: 700;">${rxToastMessage}</span>
+                <span style="cursor:pointer; margin-left: 12px; font-weight: bold; font-size: 14px;" onclick="this.parentElement.style.display='none'">✕</span>
+            </div>` : ''}
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
+                    <span>📋</span> <span>Takviye Listesi</span>
+                    <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${prescriptionList.length} Ürün</span>
+                </div>
+                <button type="button" class="btn-clear-rx-all" onclick="clearAllPrescriptionItems()" title="Reçetedeki tüm takviyeleri listeden çıkar">
+                    <span>🗑️</span>
+                    <span>Reçeteyi Sıfırla</span>
+                </button>
             </div>
             <table class="plan-rx-table">
                 <thead>
                     <tr>
-                        <th style="width: 4%; text-align: center;">#</th>
-                        <th style="width: 32%;">TAKVİYE</th>
+                        <th style="width: 3%; text-align: center;">#</th>
+                        <th style="width: 30%;">TAKVİYE</th>
                         <th style="width: 13%;">DOZ</th>
                         <th style="width: 13%;">SIKLIK</th>
                         <th style="width: 12%;">ZAMAN</th>
-                        <th style="width: 14%;">KULLANIM</th>
+                        <th style="width: 13%;">KULLANIM</th>
                         <th style="width: 8%;">SÜRE</th>
-                        <th style="width: 4%;"></th>
+                        <th style="width: 8%; text-align: center;">İŞLEM</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2131,8 +2146,9 @@ function buildDailyScheduleHtml(items) {
                          data-rx-idx="${i}" data-slot="${colKey}">
                         <div class="schedule-drag-grip" title="Sürükleyip başka zamana bırakın">⋮⋮</div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 4px;">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
                                 <div style="font-weight: 700; color: #111827; font-size: 12.5px; line-height: 1.3;" title="${escapeHtml(it.urunAdi)}">${escapeHtml(it.urunAdi)}</div>
+                                <button type="button" class="btn-pill-remove" onclick="event.stopPropagation(); removeRxItem(${i});" title="${escapeHtml(it.urunAdi)} takviyesini reçeteden çıkar">✕</button>
                             </div>
                             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${escapeHtml(entry.detail)}</div>
                             <div class="schedule-pill-controls" onclick="event.stopPropagation();">
@@ -2268,9 +2284,36 @@ function renderDailyScheduleOnly() {
 }
 
 function removeRxItem(idx) {
+    if (idx < 0 || idx >= prescriptionList.length) return;
+    const item = prescriptionList[idx];
+    const name = item ? (item.urunAdi || 'Takviye') : 'Takviye';
     prescriptionList.splice(idx, 1);
+    rxToastMessage = '🗑️ "' + name + '" reçete protokolünden çıkarıldı.';
     updateRxUI();
     renderAll();
+    setTimeout(() => {
+        rxToastMessage = '';
+        const toastEl = document.getElementById('rxToastBanner');
+        if (toastEl) toastEl.style.display = 'none';
+    }, 3500);
+}
+
+function clearAllPrescriptionItems() {
+    if (prescriptionList.length === 0) {
+        alert('Reçetede çıkarılacak takviye bulunmuyor.');
+        return;
+    }
+    if (confirm('Reçetedeki tüm takviyeleri (' + prescriptionList.length + ' ürün) listeden çıkarmak istediğinize emin misiniz?')) {
+        prescriptionList = [];
+        rxToastMessage = '🗑️ Reçetedeki tüm takviyeler temizlendi.';
+        updateRxUI();
+        renderAll();
+        setTimeout(() => {
+            rxToastMessage = '';
+            const toastEl = document.getElementById('rxToastBanner');
+            if (toastEl) toastEl.style.display = 'none';
+        }, 3500);
+    }
 }
 
 function escapeXml(unsafe) {
