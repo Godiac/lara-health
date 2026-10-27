@@ -1936,15 +1936,12 @@ function renderRxDrawerBody() {
         : '';
 
     let headerDocHtml = `
-        <div class="plan-header-box">
-            <div class="plan-title-area" style="display: flex; align-items: center; gap: 14px;">
+        <div class="plan-header-box" style="flex-direction: column; gap: 14px;">
+            <div style="width: 100%; text-align: center; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 14px;">
                 ${logoImgHtml}
-                <div>
-                    <div class="plan-main-title">Takviye Kullanım Protokolü</div>
-                    
-                </div>
+                <div class="plan-main-title" style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: 700; color: #111827; text-align: center;">Takviye Kullanım Protokolü</div>
             </div>
-            <div class="plan-meta-grid">
+            <div class="plan-meta-grid" style="width: 100%; justify-content: space-between;">
                 <div class="plan-meta-col" style="min-width: 170px;">
                     <span class="plan-meta-lbl">DANIŞAN</span>
                     <input type="text" class="plan-meta-input" placeholder="Danışan Adı Soyadı" 
@@ -2020,6 +2017,9 @@ function renderRxDrawerBody() {
 
     let planContentHtml = `
         <div class="plan-table-wrap">
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>📋</span> <span>Takviye Listesi</span>
+            </div>
             <table class="plan-rx-table">
                 <thead>
                     <tr>
@@ -2039,11 +2039,11 @@ function renderRxDrawerBody() {
             </table>
         </div>
 
-        <!-- Günlük Çizelge Bölümü -->
+        <!-- Kullanım Çizelgesi Bölümü -->
         <div class="schedule-section" id="scheduleSectionBox">
             <div class="schedule-title">
                 <span>🗓️</span>
-                <span>Günlük çizelge</span>
+                <span>Kullanım Çizelgesi</span>
             </div>
             ${scheduleHtml}
         </div>
@@ -2260,7 +2260,7 @@ function renderDailyScheduleOnly() {
         box.innerHTML = `
             <div class="schedule-title">
                 <span>🗓️</span>
-                <span>Günlük çizelge</span>
+                <span>Kullanım Çizelgesi</span>
             </div>
             ${buildDailyScheduleHtml(prescriptionList)}
         `;
@@ -2305,13 +2305,14 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
     let xml = `
     <w:p>
       <w:pPr>
-        <w:spacing w:before="120" w:after="40"/>
+        <w:jc w:val="center"/>
+        <w:spacing w:before="120" w:after="80"/>
       </w:pPr>
       <w:r>
         <w:rPr>
           <w:rFonts w:ascii="Poppins" w:hAnsi="Poppins" w:cs="Poppins"/>
           <w:b/>
-          <w:sz w:val="38"/>
+          <w:sz w:val="28"/>
           <w:color w:val="111827"/>
         </w:rPr>
         <w:t>Takviye Kullanım Protokolü</w:t>
@@ -2353,7 +2354,15 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         </w:tc>
       </w:tr>
     </w:tbl>
-    <w:p><w:pPr><w:spacing w:after="200"/></w:pPr></w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>
+
+    <w:p>
+      <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
+      <w:r>
+        <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr>
+        <w:t>Takviye Listesi</w:t>
+      </w:r>
+    </w:p>
 
     <w:tbl>
       <w:tblPr>
@@ -2375,13 +2384,13 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
       </w:tblGrid>
       <w:tr>
         <w:trPr><w:tblHeader/></w:trPr>
-        <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
       </w:tr>
     `;
 
@@ -2399,7 +2408,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         if (it.not) {
             noteXml = `
             <w:p><w:pPr><w:spacing w:before="30" w:after="0"/></w:pPr>
-              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color="869FA8"/></w:rPr>
+              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color w:val="869FA8"/></w:rPr>
               <w:t>${escapeDocXml(it.not)}</w:t></w:r>
             </w:p>
             `;
@@ -2424,11 +2433,11 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 
     xml += `</w:tbl>`;
 
-    // 4. Günlük Çizelge
+    // 4. Kullanım Çizelgesi
     xml += `
-    <w:p><w:pPr><w:spacing w:before="300" w:after="140"/></w:pPr>
-      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr>
-      <w:t>Günlük çizelge</w:t></w:r>
+    <w:p><w:pPr><w:spacing w:before="240" w:after="100"/></w:pPr>
+      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
+      <w:t>Kullanım Çizelgesi</w:t></w:r>
     </w:p>
     `;
 
@@ -2733,20 +2742,21 @@ body {
     margin-bottom: 14pt;
 }
 .main-title {
-    font-family: 'Poppins', Georgia, serif;
-    font-size: 22pt;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14pt;
     font-weight: bold;
     color: #111827;
-    margin: 0;
+    text-align: center;
+    margin: 0 0 10pt 0;
 }
 .plan-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20pt;
+    margin-bottom: 16pt;
 }
 .plan-table th {
     background-color: #F0F4F6;
-    color: #869FA8;
+    color: #111827;
     font-size: 8.5pt;
     font-weight: bold;
     letter-spacing: 0.8pt;
@@ -2757,11 +2767,11 @@ body {
     text-transform: uppercase;
 }
 .section-heading {
-    font-family: 'Poppins', Georgia, serif;
-    font-size: 13.5pt;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11pt;
     font-weight: bold;
     color: #111827;
-    margin-top: 16pt;
+    margin-top: 14pt;
     margin-bottom: 8pt;
 }
 .footer-table {
@@ -2807,6 +2817,9 @@ body {
         </tr>
     </table>
 
+    <!-- Takviye Listesi -->
+    <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Takviye Listesi</div>
+
     <!-- Main Table (7 Columns) -->
     <table class="plan-table">
         <thead>
@@ -2825,8 +2838,8 @@ body {
         </tbody>
     </table>
 
-    <!-- Günlük çizelge -->
-    <div class="section-heading">Günlük çizelge</div>
+    <!-- Kullanım Çizelgesi -->
+    <div class="section-heading">Kullanım Çizelgesi</div>
 
     <!-- 4 Cards Row -->
     <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 20pt;">
@@ -2922,7 +2935,7 @@ function printPrescription() {
                 body { font-family: 'Segoe UI', Arial, sans-serif; padding: 28px; color: #111827; }
                 @media print { body { padding: 0; } }
                 .plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-                .plan-table th { background: #F0F4F6; color: #869FA8; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8; text-align: left; }
+                .plan-table th { background: #F0F4F6; color: #111827; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8; text-align: left; }
                 .schedule-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 28px; }
                 .schedule-slot-card { border: 1.5px solid #D1D5DB; border-radius: 8px; padding: 10px; min-height: 100px; }
                 .schedule-slot-header { font-size: 11px; font-weight: 800; color: #869FA8; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
@@ -2931,31 +2944,31 @@ function printPrescription() {
         </head>
         <body>
             <div style="height: 4px; background: #869FA8; margin-bottom: 16px;"></div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <div style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: bold; color: #111827;">Takviye Kullanım Protokolü</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 14px;">
                     ${(typeof LARA_LOGO_B64 !== 'undefined' && LARA_LOGO_B64) 
-                        ? `<img src="data:image/png;base64,${LARA_LOGO_B64}" style="height: 48px; width: auto; object-fit: contain;" alt="LaraHealth">` 
+                        ? `<img src="data:image/png;base64,${LARA_LOGO_B64}" style="height: 42px; width: auto; object-fit: contain;" alt="LaraHealth">` 
                         : ''}
-                    <div>
-                        <div style="font-family: Georgia, serif; font-size: 24px; font-weight: bold;">Takviye Kullanım Protokolü</div>
-                        
-                    </div>
                 </div>
                 <div style="display: flex; gap: 24px; text-align: left;">
-                    <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">DANIŞAN</div><div style="border-bottom: 1px dotted #9CA3AF; padding-top: 2px;">${danisanDisplay}</div></div>
+                    <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">DANIŞAN</div><div style="border-bottom: 1px dotted #9CA3AF; padding-top: 2px; font-weight: bold;">${danisanDisplay}</div></div>
                     <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">TARİH</div><div style="font-weight: bold; padding-top: 2px;">${tarih}</div></div>
                     <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">KONTROL</div><div style="font-weight: bold; padding-top: 2px;">${kontrol}</div></div>
                 </div>
             </div>
+            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin-bottom: 8px;">Takviye Listesi</div>
             <table class="plan-table">
                 <thead>
                     <tr>
-                        <th>#</th><th>TAKVİYE</th><th>DOZ</th><th>SIKLIK</th><th>ZAMAN</th><th>KULLANIM</th><th>SÜRE</th>
+                        <th style="color: #111827;">#</th><th style="color: #111827;">TAKVİYE</th><th style="color: #111827;">DOZ</th><th style="color: #111827;">SIKLIK</th><th style="color: #111827;">ZAMAN</th><th style="color: #111827;">KULLANIM</th><th style="color: #111827;">SÜRE</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
-            <div style="font-family: Georgia, serif; font-size: 16px; font-weight: bold; margin-bottom: 10px;">Günlük çizelge</div>
+            <div style="font-family: 'Poppins', sans-serif; font-size: 11pt; font-weight: bold; color: #111827; margin-bottom: 10px;">Kullanım Çizelgesi</div>
             ${scheduleHtml}
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 40px;">
                 <div style="font-size: 11px; color: #6B7280; width: 60%; line-height: 1.5;">
