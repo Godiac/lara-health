@@ -1502,29 +1502,89 @@ function parseSupplementUsage(p) {
     return { doz, siklik, zaman, kullanim, sure, not };
 }
 
+function isIVProduct(item) {
+    if (!item) return false;
+    const b = (item.marka || '').toLowerCase();
+    const u = (item.urunAdi || '').toUpperCase();
+    const k = (item.kategori || '').toLowerCase();
+    return b === 'iv therapy' || u.endsWith(' IV') || u.includes(' IV ') || u.includes('IV COCKTAIL') || k.includes('iv therapy') || item.isIV === true;
+}
+
 function togglePrescriptionItem(id) {
-    const existingIdx = prescriptionList.findIndex(r => r.id === id);
+    const existingIdx = prescriptionList.findIndex(r => (r.productId === id || r.id === id));
     if (existingIdx >= 0) {
         prescriptionList.splice(existingIdx, 1);
     } else {
         const p = ALL_PRODUCTS.find(x => x.id === id);
         if (p) {
-            const parsed = parseSupplementUsage(p);
-            prescriptionList.push({
-                id: p.id,
-                urunAdi: p.urunAdi,
-                marka: p.marka || 'LaraHealth',
-                doz: parsed.doz,
-                siklik: parsed.siklik,
-                zaman: parsed.zaman,
-                kullanim: parsed.kullanim,
-                sure: parsed.sure,
-                not: parsed.not
-            });
+            const isIV = isIVProduct(p);
+            if (isIV) {
+                const existingIVCount = prescriptionList.filter(isIVProduct).length;
+                const defaultWeek = (Math.floor(existingIVCount / 2) + 1) + '. Hafta';
+                prescriptionList.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    productId: p.id,
+                    isIV: true,
+                    urunAdi: p.urunAdi,
+                    marka: p.marka || 'IV Therapy',
+                    hafta: defaultWeek,
+                    doz: (p.urunAdi.toUpperCase().includes('VITAMIN C') ? '7.5 g' : ''),
+                    siklik: 'Haftada 1',
+                    zaman: defaultWeek,
+                    kullanim: 'Damardan (IV İnfüzyon)',
+                    sure: '4 Hafta',
+                    not: ''
+                });
+            } else {
+                const parsed = parseSupplementUsage(p);
+                prescriptionList.push({
+                    id: p.id,
+                    productId: p.id,
+                    isIV: false,
+                    urunAdi: p.urunAdi,
+                    marka: p.marka || 'LaraHealth',
+                    doz: parsed.doz,
+                    siklik: parsed.siklik,
+                    zaman: parsed.zaman,
+                    kullanim: parsed.kullanim,
+                    sure: parsed.sure,
+                    not: parsed.not
+                });
+            }
         }
     }
     updateRxUI();
     renderAll();
+}
+
+function duplicateIVItem(idx) {
+    if (idx < 0 || idx >= prescriptionList.length) return;
+    const src = prescriptionList[idx];
+    const currentWeekNum = parseInt((src.hafta || src.zaman || '1').match(/\d+/) || '1', 10);
+    const nextWeek = (currentWeekNum + 1) + '. Hafta';
+
+    prescriptionList.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        productId: src.productId || src.id,
+        isIV: true,
+        urunAdi: src.urunAdi,
+        marka: src.marka || 'IV Therapy',
+        hafta: nextWeek,
+        doz: src.doz || '',
+        siklik: src.siklik || 'Haftada 1',
+        zaman: nextWeek,
+        kullanim: src.kullanim || 'Damardan (IV İnfüzyon)',
+        sure: src.sure || '4 Hafta',
+        not: src.not || ''
+    });
+    rxToastMessage = '📋 "' + src.urunAdi + '" ' + nextWeek + ' için çoğaltıldı.';
+    updateRxUI();
+    renderAll();
+    setTimeout(() => {
+        rxToastMessage = '';
+        const toastEl = document.getElementById('rxToastBanner');
+        if (toastEl) toastEl.style.display = 'none';
+    }, 3500);
 }
 
 function updateRxUI() {
@@ -1549,6 +1609,144 @@ function toggleRxDrawer() {
 
 // KLİNİK HAZIR REÇETELER VE PROTOKOLLER
 const DEFAULT_CLINICAL_PROTOCOLS = [
+    {
+        id: 'protocol-longevity-iv-rx',
+        name: 'Longevity IV ve Takviye Protokolü (4 Haftalık)',
+        category: 'Longevity & IV Therapy',
+        duration: '4 Hafta IV + 3 Ay Takviye',
+        badge: 'Beyza Nur Çevik Protokolü',
+        description: '4 haftalık dönüşümlü To Infinity Cocktail, Vitamin C (7.5 g), Sitikolin ve Glutatyon IV protokolü ile hücresel Pure NMNH ve Mitopure Urolithin A takviye kürü.',
+        supplements: [
+            {
+                productId: 155,
+                isIV: true,
+                hafta: '1. Hafta',
+                urunAdi: 'TO INFINITY COCKTAIL IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '1. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 145,
+                isIV: true,
+                hafta: '1. Hafta',
+                urunAdi: 'VITAMIN C IV',
+                marka: 'IV Therapy',
+                doz: '7.5 g',
+                siklik: 'Haftada 1',
+                zaman: '1. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 152,
+                isIV: true,
+                hafta: '2. Hafta',
+                urunAdi: 'SITIKOLIN IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '2. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 140,
+                isIV: true,
+                hafta: '2. Hafta',
+                urunAdi: 'GLUTATHIONE IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '2. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 155,
+                isIV: true,
+                hafta: '3. Hafta',
+                urunAdi: 'TO INFINITY COCKTAIL IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '3. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 145,
+                isIV: true,
+                hafta: '3. Hafta',
+                urunAdi: 'VITAMIN C IV',
+                marka: 'IV Therapy',
+                doz: '7.5 g',
+                siklik: 'Haftada 1',
+                zaman: '3. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 152,
+                isIV: true,
+                hafta: '4. Hafta',
+                urunAdi: 'SITIKOLIN IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '4. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 140,
+                isIV: true,
+                hafta: '4. Hafta',
+                urunAdi: 'GLUTATHIONE IV',
+                marka: 'IV Therapy',
+                doz: '',
+                siklik: 'Haftada 1',
+                zaman: '4. Hafta',
+                kullanim: 'Damardan (IV)',
+                sure: '4 Hafta',
+                not: ''
+            },
+            {
+                productId: 34,
+                isIV: false,
+                urunAdi: 'Pure NMNH Prohealth',
+                marka: 'ProHealth Longevity',
+                doz: '1 kapsül',
+                siklik: 'Günde 1 kez',
+                zaman: 'Sabah',
+                kullanim: 'Aç karnına',
+                sure: '3 ay',
+                not: 'Hücresel NAD+ öncüsü ve longevity optimizasyonu'
+            },
+            {
+                productId: 33,
+                isIV: false,
+                urunAdi: 'Mitopure® Urolithin A Softgels',
+                marka: 'Timeline Nutrition',
+                doz: '1 x 2 kapsül',
+                siklik: 'Günde 1 kez',
+                zaman: 'Sabah',
+                kullanim: 'Yemekten önce',
+                sure: '3 ay',
+                not: 'Mitofaji ve mitokondriyal yenilenme'
+            }
+        ]
+    },
     {
         id: 'protocol-gut-3m',
         name: '3 Aylık Kapsamlı Bağırsak Onarım & Mikrobiyota Protokolü',
@@ -1764,17 +1962,26 @@ function applyClinicalProtocol(protocolId) {
     if (!proto) return;
 
     proto.supplements.forEach(sup => {
-        const exists = prescriptionList.some(r => r.urunAdi === sup.urunAdi);
+        const isIV = sup.isIV || isIVProduct(sup);
+        const exists = prescriptionList.some(r => {
+            if (isIV) {
+                return r.urunAdi === sup.urunAdi && (r.hafta || r.zaman) === (sup.hafta || sup.zaman);
+            }
+            return r.urunAdi === sup.urunAdi;
+        });
         if (!exists) {
             prescriptionList.push({
-                id: sup.productId || Date.now() + Math.random(),
+                id: sup.productId ? (isIV ? Date.now() + Math.floor(Math.random() * 100000) : sup.productId) : Date.now() + Math.random(),
+                productId: sup.productId,
+                isIV: isIV,
+                hafta: sup.hafta || (isIV ? '1. Hafta' : ''),
                 urunAdi: sup.urunAdi,
-                marka: sup.marka || '',
-                doz: sup.doz || '1 x 1 kapsül',
-                siklik: sup.siklik || 'Günde 1 kez',
-                zaman: sup.zaman || 'Sabah',
-                kullanim: sup.kullanim || 'Yemekten sonra',
-                sure: sup.sure || '3 ay',
+                marka: sup.marka || (isIV ? 'IV Therapy' : ''),
+                doz: sup.doz || (isIV ? '' : '1 x 1 kapsül'),
+                siklik: sup.siklik || (isIV ? 'Haftada 1' : 'Günde 1 kez'),
+                zaman: sup.zaman || (isIV ? (sup.hafta || '1. Hafta') : 'Sabah'),
+                kullanim: sup.kullanim || (isIV ? 'Damardan (IV)' : 'Yemekten sonra'),
+                sure: sup.sure || (isIV ? '4 Hafta' : '3 ay'),
                 not: sup.not || ''
             });
         }
@@ -1935,11 +2142,21 @@ function renderRxDrawerBody() {
         ? `<img src="data:image/png;base64,${LARA_LOGO_B64}" alt="LaraHealth" style="height: 44px; width: auto; object-fit: contain;">`
         : '';
 
+    const ivItems = prescriptionList.filter(isIVProduct);
+    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
+
+    let drawerTitle = 'Takviye Kullanım Protokolü';
+    if (ivItems.length > 0 && oralItems.length > 0) {
+        drawerTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    } else if (ivItems.length > 0) {
+        drawerTitle = 'LONGEVITY IV PROTOKOLÜ';
+    }
+
     let headerDocHtml = `
         <div class="plan-header-box" style="flex-direction: column; gap: 14px;">
             <div style="width: 100%; text-align: center; border-bottom: 1px solid #E5E7EB; padding-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 14px;">
                 ${logoImgHtml}
-                <div class="plan-main-title" style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: 700; color: #111827; text-align: center;">Takviye Kullanım Protokolü</div>
+                <div class="plan-main-title" style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: 700; color: #111827; text-align: center;">${escapeXml(drawerTitle)}</div>
             </div>
             <div class="plan-meta-grid" style="width: 100%; justify-content: space-between;">
                 <div class="plan-meta-col" style="min-width: 170px;">
@@ -1973,95 +2190,186 @@ function renderRxDrawerBody() {
         return;
     }
 
-    let tableRowsHtml = '';
-    prescriptionList.forEach((item, idx) => {
-        const num = idx + 1;
-        tableRowsHtml += `
-            <tr>
-                <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center;">${num}</td>
-                <td style="width: 32%;">
-                    <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${item.urunAdi}</div>
-                    <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${item.marka}</div>
-                    <input type="text" class="plan-titration-input" placeholder="+ Özel titrasyon/kullanım notu (örn: 1. Hafta gün aşırı...)" 
-                           value="${item.not || ''}" 
-                           onchange="prescriptionList[${idx}].not = this.value" title="Özel klinik not veya titrasyon takvimi">
-                </td>
-                <td style="width: 13%;">
-                    <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 kapsül'}" 
-                           onchange="prescriptionList[${idx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz (örn: 1 x 1 kapsül)">
-                </td>
-                <td style="width: 13%;">
-                    <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
-                           onchange="prescriptionList[${idx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)">
-                </td>
-                <td style="width: 12%;">
-                    <input type="text" id="rxZamanInput_${idx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
-                           onchange="prescriptionList[${idx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman (Sabah/Öğle/Akşam/Yatmadan)">
-                </td>
-                <td style="width: 14%;">
-                    <input type="text" class="plan-input-inline" value="${item.kullanim || 'Yemekten sonra'}" 
-                           onchange="prescriptionList[${idx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım (örn: Yemekten sonra)">
-                </td>
-                <td style="width: 8%;">
-                    <input type="text" class="plan-input-inline" value="${item.sure || '3 ay'}" 
-                           onchange="prescriptionList[${idx}].sure = this.value;" placeholder="Süre (örn: 3 ay)">
-                </td>
-                <td style="width: 8%; text-align: center;">
-                    <button type="button" class="rx-btn-remove" onclick="removeRxItem(${idx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar">
-                        <span>🗑️</span>
-                        <span>Çıkar</span>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
+    // 1. IV PROTOKOLÜ BÖLÜMÜ (Sadece IV Ürünleri Varsa Görünür)
+    let ivSectionHtml = '';
+    if (ivItems.length > 0) {
+        let ivRowsHtml = '';
+        prescriptionList.forEach((item, realIdx) => {
+            if (!isIVProduct(item)) return;
+            const weekVal = (item.hafta || item.zaman || '1. Hafta').trim();
+            const weekOptions = ['1. Hafta', '2. Hafta', '3. Hafta', '4. Hafta', '5. Hafta', '6. Hafta', '7. Hafta', '8. Hafta']
+                .map(w => `<option value="${w}" ${w === weekVal ? 'selected' : ''}>${w}</option>`).join('');
 
-    const scheduleHtml = buildDailyScheduleHtml(prescriptionList);
+            ivRowsHtml += `
+                <tr>
+                    <td style="width: 14%;">
+                        <select class="plan-input-inline" style="font-weight: 700; color: #111827; background: #F0F4F6;" 
+                                onchange="prescriptionList[${realIdx}].hafta = this.value; prescriptionList[${realIdx}].zaman = this.value; updateRxUI(); renderAll();">
+                            ${weekOptions}
+                        </select>
+                    </td>
+                    <td style="width: 32%;">
+                        <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.marka || 'IV Therapy')}</div>
+                    </td>
+                    <td style="width: 14%;">
+                        <input type="text" class="plan-input-inline" value="${item.doz || ''}" 
+                               onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)">
+                    </td>
+                    <td style="width: 12%;">
+                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Haftada 1'}" 
+                               onchange="prescriptionList[${realIdx}].siklik = this.value;" placeholder="Haftada 1">
+                    </td>
+                    <td style="width: 14%;">
+                        <input type="text" class="plan-input-inline" value="${item.kullanim || 'Damardan (IV)'}" 
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value;" placeholder="Damardan (IV)">
+                    </td>
+                    <td style="width: 14%; text-align: center;">
+                        <div style="display: flex; gap: 6px; justify-content: center;">
+                            <button type="button" class="btn-duplicate-iv" onclick="duplicateIVItem(${realIdx})" title="Bu IV infüzyonunu bir sonraki haftaya çoğalt" style="padding: 4px 8px; font-size: 11px; font-weight: 600; background: #F0F4F6; border: 1px solid #869FA8; border-radius: 6px; color: #1E293B; cursor: pointer;">
+                                📋 Çoğalt
+                            </button>
+                            <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} infüzyonunu reçeteden çıkar" style="padding: 4px 8px; font-size: 11px;">
+                                🗑️ Çıkar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        ivSectionHtml = `
+            <div class="plan-table-wrap" style="margin-bottom: 22px; border-left: 4px solid #869FA8;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
+                        <span>💉</span> <span>IV PROTOKOLÜ</span>
+                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${ivItems.length} İnfüzyon</span>
+                    </div>
+                </div>
+                <table class="plan-rx-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 14%;">HAFTA</th>
+                            <th style="width: 32%;">IV BİLEŞENİ</th>
+                            <th style="width: 14%;">DOZ</th>
+                            <th style="width: 12%;">SIKLIK</th>
+                            <th style="width: 14%;">UYGULAMA</th>
+                            <th style="width: 14%; text-align: center;">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ivRowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 2. TAKVİYE LİSTESİ BÖLÜMÜ (Oral Takviyeler Varsa Görünür)
+    let oralSectionHtml = '';
+    if (oralItems.length > 0) {
+        let tableRowsHtml = '';
+        let oralCounter = 0;
+        prescriptionList.forEach((item, realIdx) => {
+            if (isIVProduct(item)) return;
+            oralCounter++;
+            tableRowsHtml += `
+                <tr>
+                    <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center;">${oralCounter}</td>
+                    <td style="width: 32%;">
+                        <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.marka)}</div>
+                        <input type="text" class="plan-titration-input" placeholder="+ Özel titrasyon/kullanım notu (örn: 1. Hafta gün aşırı...)" 
+                               value="${item.not || ''}" 
+                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel klinik not veya titrasyon takvimi">
+                    </td>
+                    <td style="width: 13%;">
+                        <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 kapsül'}" 
+                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz (örn: 1 x 1 kapsül)">
+                    </td>
+                    <td style="width: 13%;">
+                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
+                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)">
+                    </td>
+                    <td style="width: 12%;">
+                        <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
+                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman (Sabah/Öğle/Akşam/Yatmadan)">
+                    </td>
+                    <td style="width: 14%;">
+                        <input type="text" class="plan-input-inline" value="${item.kullanim || 'Yemekten sonra'}" 
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım (örn: Yemekten sonra)">
+                    </td>
+                    <td style="width: 8%;">
+                        <input type="text" class="plan-input-inline" value="${item.sure || '3 ay'}" 
+                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre (örn: 3 ay)">
+                    </td>
+                    <td style="width: 8%; text-align: center;">
+                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar">
+                            <span>🗑️</span>
+                            <span>Çıkar</span>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        oralSectionHtml = `
+            <div class="plan-table-wrap">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
+                        <span>📋</span> <span>Takviye Listesi</span>
+                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${oralItems.length} Ürün</span>
+                    </div>
+                    <button type="button" class="btn-clear-rx-all" onclick="clearAllPrescriptionItems()" title="Reçetedeki tüm takviyeleri listeden çıkar">
+                        <span>🗑️</span>
+                        <span>Reçeteyi Sıfırla</span>
+                    </button>
+                </div>
+                <table class="plan-rx-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 3%; text-align: center;">#</th>
+                            <th style="width: 30%;">TAKVİYE</th>
+                            <th style="width: 13%;">DOZ</th>
+                            <th style="width: 13%;">SIKLIK</th>
+                            <th style="width: 12%;">ZAMAN</th>
+                            <th style="width: 13%;">KULLANIM</th>
+                            <th style="width: 8%;">SÜRE</th>
+                            <th style="width: 8%; text-align: center;">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 3. KULLANIM ÇİZELGESİ (Sadece Oral Takviyeler Varsa Görünür)
+    let scheduleSectionHtml = '';
+    if (oralItems.length > 0) {
+        scheduleSectionHtml = `
+            <div class="schedule-section" id="scheduleSectionBox">
+                <div class="schedule-title">
+                    <span>🗓️</span>
+                    <span>Kullanım Çizelgesi</span>
+                </div>
+                ${buildDailyScheduleHtml(prescriptionList)}
+            </div>
+        `;
+    }
 
     let planContentHtml = `
-        <div class="plan-table-wrap">
-            ${rxToastMessage ? `
-            <div class="rx-toast-banner" id="rxToastBanner" style="margin-bottom: 12px; background: #FFF1F2; border: 1.5px solid #FECDD3; color: #BE123C; box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15);">
-                <span style="font-weight: 700;">${rxToastMessage}</span>
-                <span style="cursor:pointer; margin-left: 12px; font-weight: bold; font-size: 14px;" onclick="this.parentElement.style.display='none'">✕</span>
-            </div>` : ''}
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
-                    <span>📋</span> <span>Takviye Listesi</span>
-                    <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${prescriptionList.length} Ürün</span>
-                </div>
-                <button type="button" class="btn-clear-rx-all" onclick="clearAllPrescriptionItems()" title="Reçetedeki tüm takviyeleri listeden çıkar">
-                    <span>🗑️</span>
-                    <span>Reçeteyi Sıfırla</span>
-                </button>
-            </div>
-            <table class="plan-rx-table">
-                <thead>
-                    <tr>
-                        <th style="width: 3%; text-align: center;">#</th>
-                        <th style="width: 30%;">TAKVİYE</th>
-                        <th style="width: 13%;">DOZ</th>
-                        <th style="width: 13%;">SIKLIK</th>
-                        <th style="width: 12%;">ZAMAN</th>
-                        <th style="width: 13%;">KULLANIM</th>
-                        <th style="width: 8%;">SÜRE</th>
-                        <th style="width: 8%; text-align: center;">İŞLEM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRowsHtml}
-                </tbody>
-            </table>
-        </div>
+        ${rxToastMessage ? `
+        <div class="rx-toast-banner" id="rxToastBanner" style="margin-bottom: 12px; background: #FFF1F2; border: 1.5px solid #FECDD3; color: #BE123C; box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15);">
+            <span style="font-weight: 700;">${rxToastMessage}</span>
+            <span style="cursor:pointer; margin-left: 12px; font-weight: bold; font-size: 14px;" onclick="this.parentElement.style.display='none'">✕</span>
+        </div>` : ''}
 
-        <!-- Kullanım Çizelgesi Bölümü -->
-        <div class="schedule-section" id="scheduleSectionBox">
-            <div class="schedule-title">
-                <span>🗓️</span>
-                <span>Kullanım Çizelgesi</span>
-            </div>
-            ${scheduleHtml}
-        </div>
+        ${ivSectionHtml}
+        ${oralSectionHtml}
+        ${scheduleSectionHtml}
 
         <!-- Alt Bilgi & İmza Alanı -->
         <div class="plan-footer-box">
@@ -2079,28 +2387,9 @@ function renderRxDrawerBody() {
         </div>
     `;
 
-    container.innerHTML = headerDocHtml + planContentHtml + renderReadyProtocolsHtml();
+    container.innerHTML = headerDocHtml + planContentHtml;
 }
 
-const SLOT_KEYS = ['sabah', 'ogle', 'aksam', 'yatmadan'];
-const SLOT_LABELS = {
-    sabah: 'SABAH',
-    ogle: 'ÖĞLE',
-    aksam: 'AKŞAM',
-    yatmadan: 'YATMADAN'
-};
-const SLOT_ICONS = {
-    sabah: '🌅',
-    ogle: '☀️',
-    aksam: '🌙',
-    yatmadan: '🛌'
-};
-const SLOT_NAMES_TR = {
-    sabah: 'Sabah',
-    ogle: 'Öğle',
-    aksam: 'Akşam',
-    yatmadan: 'Yatmadan'
-};
 
 function getItemScheduleSlot(item) {
     const z = (item.zaman || '').toLowerCase();
@@ -2118,10 +2407,12 @@ function buildDailyScheduleHtml(items) {
         yatmadan: []
     };
 
-    items.forEach((item, idx) => {
+    items.forEach((item) => {
+        if (isIVProduct(item)) return; // Skip IV items in daily schedule cards!
+        const realIdx = prescriptionList.indexOf(item);
         const slot = getItemScheduleSlot(item);
         schedule[slot].push({
-            idx: idx,
+            idx: realIdx >= 0 ? realIdx : 0,
             item: item,
             name: item.urunAdi,
             detail: (item.doz || '1 x 1 kapsül') + ' · ' + (item.kullanim || 'yemekle')
@@ -2342,8 +2633,18 @@ function escapeDocXml(str) {
 function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
     const safeDanisan = escapeDocXml(danisan || '................................................');
     const safeTarih = escapeDocXml(tarih || '');
-    const safeKontrol = escapeDocXml(kontrol || '');
+    const safeKontrol = escapeDocXml(kontrol || '-');
     const safeDiyetisyen = escapeDocXml(diyetisyen || 'Diyetisyen Betül Çetin');
+
+    const ivItems = items.filter(isIVProduct);
+    const oralItems = items.filter(it => !isIVProduct(it));
+
+    let docTitle = 'Takviye Kullanım Protokolü';
+    if (ivItems.length > 0 && oralItems.length > 0) {
+        docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    } else if (ivItems.length > 0) {
+        docTitle = 'LONGEVITY IV PROTOKOLÜ';
+    }
 
     let xml = `
     <w:p>
@@ -2358,11 +2659,11 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           <w:sz w:val="28"/>
           <w:color w:val="111827"/>
         </w:rPr>
-        <w:t>Takviye Kullanım Protokolü</w:t>
+        <w:t>${escapeDocXml(docTitle)}</w:t>
       </w:r>
     </w:p>
 
-
+    <!-- DANIŞAN / TARİH / KONTROL TABLE -->
     <w:tbl>
       <w:tblPr>
         <w:tblW w:w="9184" w:type="dxa"/>
@@ -2397,217 +2698,359 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         </w:tc>
       </w:tr>
     </w:tbl>
-    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>
-
-    <w:p>
-      <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
-      <w:r>
-        <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr>
-        <w:t>Takviye Listesi</w:t>
-      </w:r>
-    </w:p>
-
-    <w:tbl>
-      <w:tblPr>
-        <w:tblW w:w="9184" w:type="dxa"/>
-        <w:tblBorders>
-          <w:top w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
-          <w:bottom w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
-          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E5E7EB"/>
-          <w:left w:val="none"/><w:right w:val="none"/><w:insideV w:val="none"/>
-        </w:tblBorders>
-        <w:tblCellMar>
-          <w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>
-          <w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>
-        </w:tblCellMar>
-      </w:tblPr>
-      <w:tblGrid>
-        <w:gridCol w:w="368"/><w:gridCol w:w="3120"/><w:gridCol w:w="1100"/>
-        <w:gridCol w:w="1280"/><w:gridCol w:w="1100"/><w:gridCol w:w="1280"/><w:gridCol w:w="936"/>
-      </w:tblGrid>
-      <w:tr>
-        <w:trPr><w:tblHeader/></w:trPr>
-        <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
-      </w:tr>
+    <w:p><w:pPr><w:spacing w:after="160"/></w:pPr></w:p>
     `;
 
-    items.forEach((it, idx) => {
-        const num = idx + 1;
-        const name = escapeDocXml(it.urunAdi || '');
-        const brand = escapeDocXml(it.marka || '');
-        const dose = escapeDocXml(it.doz || '-');
-        const freq = escapeDocXml(it.siklik || '-');
-        const time = escapeDocXml(it.zaman || '-');
-        const usage = escapeDocXml(it.kullanim || '-');
-        const duration = escapeDocXml(it.sure || '-');
-        
-        let noteXml = '';
-        if (it.not) {
-            noteXml = `
-            <w:p><w:pPr><w:spacing w:before="30" w:after="0"/></w:pPr>
-              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color w:val="869FA8"/></w:rPr>
-              <w:t>${escapeDocXml(it.not)}</w:t></w:r>
-            </w:p>
-            `;
-        }
-
+    // 1. IV PROTOKOLÜ (SADECE IV ÜRÜNÜ VARSA ÇIKAR!)
+    if (ivItems.length > 0) {
         xml += `
-        <w:tr>
-          <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>${num}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/></w:tcPr>
-            <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr><w:t>${name}</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:before="20" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${brand}</w:t></w:r></w:p>
-            ${noteXml}
-          </w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${dose}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${freq}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${time}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${usage}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${duration}</w:t></w:r></w:p></w:tc>
-        </w:tr>
+        <w:p>
+          <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr>
+            <w:t>IV PROTOKOLÜ</w:t>
+          </w:r>
+        </w:p>
+
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:bottom w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E5E7EB"/>
+              <w:left w:val="none"/><w:right w:val="none"/><w:insideV w:val="none"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>
+              <w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="2200"/>
+            <w:gridCol w:w="3200"/>
+            <w:gridCol w:w="584"/>
+            <w:gridCol w:w="3200"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:trPr><w:tblHeader/></w:trPr>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="2200" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+            </w:tc>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>İçerik</w:t></w:r></w:p>
+            </w:tc>
+          </w:tr>
         `;
-    });
 
-    xml += `</w:tbl>`;
+        // Group IV items by week
+        const weeksMap = new Map();
+        ivItems.forEach(item => {
+            let w = (item.hafta || item.zaman || '1. Hafta').trim();
+            if (!w.toLowerCase().includes('hafta')) w = w + '. Hafta';
+            if (!weeksMap.has(w)) weeksMap.set(w, []);
+            weeksMap.get(w).push(item);
+        });
 
-    // 4. Kullanım Çizelgesi
-    xml += `
-    <w:p><w:pPr><w:spacing w:before="240" w:after="100"/></w:pPr>
-      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
-      <w:t>Kullanım Çizelgesi</w:t></w:r>
-    </w:p>
-    `;
+        const sortedWeeks = Array.from(weeksMap.entries()).sort((a, b) => {
+            const numA = parseInt(a[0].match(/\d+/) || '0', 10);
+            const numB = parseInt(b[0].match(/\d+/) || '0', 10);
+            return numA - numB;
+        });
 
-    // 5. 4 Schedule Cards
-    const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
-    items.forEach(item => {
-        const z = (item.zaman || '').toLowerCase();
-        const entry = {
-            name: item.urunAdi || '',
-            detail: (item.doz || '1 kap') + ' · ' + (item.kullanim || 'yemekle')
-        };
-        if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-            schedule.sabah.push(entry);
-        } else if (z.includes('öğle') || z.includes('ogle')) {
-            schedule.ogle.push(entry);
-        } else if (z.includes('akşam') || z.includes('aksam')) {
-            schedule.aksam.push(entry);
-        } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-            schedule.yatmadan.push(entry);
-        } else {
-            schedule.sabah.push(entry);
-        }
-    });
+        sortedWeeks.forEach(([wName, wItems]) => {
+            if (wItems.length >= 2) {
+                const item1 = wItems[0];
+                const item2 = wItems[1];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                xml += `
+                <w:tr>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr>
+                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(wName)}</w:t></w:r></w:p>
+                  </w:tc>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
+                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
+                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                  </w:tc>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
+                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr><w:t>+</w:t></w:r></w:p>
+                  </w:tc>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
+                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item2.urunAdi + d2)}</w:t></w:r></w:p>
+                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item2.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                  </w:tc>
+                </w:tr>
+                `;
+            } else {
+                const item1 = wItems[0];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                xml += `
+                <w:tr>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr>
+                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(wName)}</w:t></w:r></w:p>
+                  </w:tc>
+                  <w:tc>
+                    <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr>
+                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
+                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                  </w:tc>
+                </w:tr>
+                `;
+            }
+        });
 
-    xml += `
-    <w:tbl>
-      <w:tblPr>
-        <w:tblW w:w="9184" w:type="dxa"/>
-        <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
-      </w:tblPr>
-      <w:tblGrid>
-        <w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/>
-      </w:tblGrid>
-      <w:tr>
-    `;
+        xml += `</w:tbl>`;
 
-    const slots = [
-        ['SABAH', schedule.sabah],
-        ['ÖĞLE', schedule.ogle],
-        ['AKŞAM', schedule.aksam],
-        ['YATMADAN', schedule.yatmadan]
-    ];
+        // Disclaimer below IV table
+        xml += `
+        <w:p><w:pPr><w:spacing w:before="180" w:after="100"/></w:pPr>
+          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr>
+          <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
+        </w:p>
+        `;
 
-    slots.forEach(([slotTitle, slotItems]) => {
-        let itemsXml = '';
-        if (slotItems.length === 0) {
-            itemsXml = `
-            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="80"/></w:pPr>
-              <w:r><w:rPr><w:sz w:val="22"/><w:color w:val="9CA3AF"/></w:rPr><w:t>—</w:t></w:r>
-            </w:p>
+        // If oral supplements exist, add a Page Break for Page 2 (Takviye Listesi)
+        if (oralItems.length > 0) {
+            xml += `
+            <w:p><w:r><w:br w:type="page"/></w:r></w:p>
             `;
-        } else {
-            slotItems.forEach(it => {
-                itemsXml += `
-                <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
-                  <w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>
-                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
-                </w:p>
-                <w:p><w:pPr><w:ind w:left="240"/><w:spacing w:before="0" w:after="40"/></w:pPr>
-                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
+        }
+    }
+
+    // 2. TAKVİYE LİSTESİ (SADECE ORAL TAKVİYELER VARSA ÇIKAR!)
+    if (oralItems.length > 0) {
+        xml += `
+        <w:p>
+          <w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr>
+            <w:t>Takviye Listesi</w:t>
+          </w:r>
+        </w:p>
+
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:bottom w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E5E7EB"/>
+              <w:left w:val="none"/><w:right w:val="none"/><w:insideV w:val="none"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>
+              <w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="368"/><w:gridCol w:w="3120"/><w:gridCol w:w="1100"/>
+            <w:gridCol w:w="1280"/><w:gridCol w:w="1100"/><w:gridCol w:w="1280"/><w:gridCol w:w="936"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:trPr><w:tblHeader/></w:trPr>
+            <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        `;
+
+        oralItems.forEach((it, idx) => {
+            const num = idx + 1;
+            const name = escapeDocXml(it.urunAdi || '');
+            const brand = escapeDocXml(it.marka || '');
+            const dose = escapeDocXml(it.doz || '-');
+            const freq = escapeDocXml(it.siklik || '-');
+            const time = escapeDocXml(it.zaman || '-');
+            const usage = escapeDocXml(it.kullanim || '-');
+            const duration = escapeDocXml(it.sure || '-');
+            
+            let noteXml = '';
+            if (it.not) {
+                noteXml = `
+                <w:p><w:pPr><w:spacing w:before="30" w:after="0"/></w:pPr>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color w:val="869FA8"/></w:rPr>
+                  <w:t>${escapeDocXml(it.not)}</w:t></w:r>
                 </w:p>
                 `;
+            }
+
+            xml += `
+            <w:tr>
+              <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>${num}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/></w:tcPr>
+                <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr><w:t>${name}</w:t></w:r></w:p>
+                <w:p><w:pPr><w:spacing w:before="20" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${brand}</w:t></w:r></w:p>
+                ${noteXml}
+              </w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${dose}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${freq}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${time}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${usage}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${duration}</w:t></w:r></w:p></w:tc>
+            </w:tr>
+            `;
+        });
+
+        xml += `</w:tbl>`;
+
+        // Only show daily schedule cards if oral supplements exist and IV is NOT present
+        if (ivItems.length === 0) {
+            xml += `
+            <w:p><w:pPr><w:spacing w:before="240" w:after="100"/></w:pPr>
+              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
+              <w:t>Kullanım Çizelgesi</w:t></w:r>
+            </w:p>
+            `;
+
+            const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
+            oralItems.forEach(item => {
+                const z = (item.zaman || '').toLowerCase();
+                const entry = {
+                    name: item.urunAdi || '',
+                    detail: (item.doz || '1 kap') + ' · ' + (item.kullanim || 'yemekle')
+                };
+                if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
+                    schedule.sabah.push(entry);
+                } else if (z.includes('öğle') || z.includes('ogle')) {
+                    schedule.ogle.push(entry);
+                } else if (z.includes('akşam') || z.includes('aksam')) {
+                    schedule.aksam.push(entry);
+                } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
+                    schedule.yatmadan.push(entry);
+                } else {
+                    schedule.sabah.push(entry);
+                }
             });
+
+            xml += `
+            <w:tbl>
+              <w:tblPr>
+                <w:tblW w:w="9184" w:type="dxa"/>
+                <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
+              </w:tblPr>
+              <w:tblGrid>
+                <w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/>
+              </w:tblGrid>
+              <w:tr>
+            `;
+
+            const slots = [
+                ['SABAH', schedule.sabah],
+                ['ÖĞLE', schedule.ogle],
+                ['AKŞAM', schedule.aksam],
+                ['YATMADAN', schedule.yatmadan]
+            ];
+
+            slots.forEach(([slotTitle, slotItems]) => {
+                let itemsXml = '';
+                if (slotItems.length === 0) {
+                    itemsXml = `
+                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="80"/></w:pPr>
+                      <w:r><w:rPr><w:sz w:val="22"/><w:color w:val="9CA3AF"/></w:rPr><w:t>—</w:t></w:r>
+                    </w:p>
+                    `;
+                } else {
+                    slotItems.forEach(it => {
+                        itemsXml += `
+                        <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
+                          <w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>
+                          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
+                        </w:p>
+                        <w:p><w:pPr><w:ind w:left="240"/><w:spacing w:before="0" w:after="40"/></w:pPr>
+                          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
+                        </w:p>
+                        `;
+                    });
+                }
+
+                xml += `
+                <w:tc>
+                  <w:tcPr>
+                    <w:tcW w:w="2296" w:type="dxa"/>
+                    <w:tcBorders>
+                      <w:top w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                      <w:left w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                      <w:bottom w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                      <w:right w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                    </w:tcBorders>
+                    <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
+                    <w:tcMar><w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>
+                  </w:tcPr>
+                  <w:p>
+                    <w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="E5E7EB"/></w:pBdr><w:spacing w:after="80"/></w:pPr>
+                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
+                  </w:p>
+                  ${itemsXml}
+                </w:tc>
+                `;
+            });
+
+            xml += `
+              </w:tr>
+            </w:tbl>
+            `;
         }
+    }
 
+    // 3. DISCLAIMER & SIGNATURE
+    if (oralItems.length > 0 || ivItems.length === 0) {
         xml += `
-        <w:tc>
-          <w:tcPr>
-            <w:tcW w:w="2296" w:type="dxa"/>
-            <w:tcBorders>
-              <w:top w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-              <w:left w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-              <w:bottom w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-              <w:right w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-            </w:tcBorders>
-            <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
-            <w:tcMar><w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>
-          </w:tcPr>
-          <w:p>
-            <w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="E5E7EB"/></w:pBdr><w:spacing w:after="80"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
-          </w:p>
-          ${itemsXml}
-        </w:tc>
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="5510"/><w:gridCol w:w="3674"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="5510" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:before="300" w:after="40"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+                <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
+              </w:p>
+            </w:tc>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="3674" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
+              </w:p>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
+              </w:p>
+            </w:tc>
+          </w:tr>
+        </w:tbl>
         `;
-    });
-
-    xml += `
-      </w:tr>
-    </w:tbl>
-    `;
-
-    // 6. Disclaimer & Signature Row
-    xml += `
-    <w:tbl>
-      <w:tblPr>
-        <w:tblW w:w="9184" w:type="dxa"/>
-        <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
-      </w:tblPr>
-      <w:tblGrid>
-        <w:gridCol w:w="5510"/><w:gridCol w:w="3674"/>
-      </w:tblGrid>
-      <w:tr>
-        <w:tc>
-          <w:tcPr><w:tcW w:w="5510" w:type="dxa"/></w:tcPr>
-          <w:p><w:pPr><w:spacing w:before="300" w:after="40"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
-            <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
-          </w:p>
-        </w:tc>
-        <w:tc>
-          <w:tcPr><w:tcW w:w="3674" w:type="dxa"/></w:tcPr>
-          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
-          </w:p>
-          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
-          </w:p>
-        </w:tc>
-      </w:tr>
-    </w:tbl>
-    `;
+    } else {
+        // Only IV was present: put signature directly below IV table
+        xml += `
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
+          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
+        </w:p>
+        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
+          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
+        </w:p>
+        `;
+    }
 
     return xml;
 }
 
-// WORD EXPORT ENGINE - DUAL MODE (TRUE .DOCX TEMPLATE WITH EMBEDDED LOGO + MSO HTML FALLBACK)
+
 async function downloadPrescriptionWord() {
     if (prescriptionList.length === 0) {
         alert('Lütfen önce protokole en az bir takviye ekleyiniz.');
@@ -2621,7 +3064,7 @@ async function downloadPrescriptionWord() {
     const danisanSlug = danisan ? danisan.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_]/g, '_') : 'Danisan';
     const tarihSlug = (tarih || '').replace(/\./g, '_');
 
-    // 1. Primary Mode: True .docx document using official LaraHealth template with embedded logo and footer
+    // 1. Primary Mode: True .docx document using official LaraHealth template
     if (typeof JSZip !== 'undefined' && typeof DOCX_TEMPLATE_B64 !== 'undefined' && DOCX_TEMPLATE_B64) {
         try {
             const zip = new JSZip();
@@ -2654,95 +3097,218 @@ async function downloadPrescriptionWord() {
         }
     }
 
-    // 2. Fallback Mode: HTML-based .doc format with Base64 LaraHealth logo
-    let rowsHtml = '';
-    prescriptionList.forEach((item, idx) => {
-        const num = idx + 1;
-        const urunAdi = escapeXml(item.urunAdi || '');
-        const marka = escapeXml(item.marka || '');
-        const titrationNote = item.not 
-            ? `<div style="font-size: 9pt; color: #869FA8; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
-            : '';
-        const doz = escapeXml(item.doz || '1 x 1 kapsül');
-        const siklik = escapeXml(item.siklik || 'Günde 1 kez');
-        const zaman = escapeXml(item.zaman || 'Sabah');
-        const kullanim = escapeXml(item.kullanim || 'Yemekten sonra');
-        const sure = escapeXml(item.sure || '3 ay');
+    // 2. Fallback Mode: HTML-based .doc format
+    const ivItems = prescriptionList.filter(isIVProduct);
+    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
 
-        rowsHtml += `
-            <tr style="border-bottom: 1pt solid #E5E7EB;">
-                <td style="padding: 9pt 6pt; font-size: 10pt; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
-                <td style="padding: 9pt 8pt; vertical-align: top; width: 34%;">
-                    <div style="font-size: 10.5pt; font-weight: bold; color: #111827; font-family: 'Segoe UI', Arial, sans-serif;">${urunAdi}</div>
-                    <div style="font-size: 8.5pt; color: #6B7280; margin-top: 1pt;">${marka}</div>
-                    ${titrationNote}
-                </td>
-                <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${doz}</td>
-                <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${siklik}</td>
-                <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${zaman}</td>
-                <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${kullanim}</td>
-                <td style="padding: 9pt 6pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 10%;">${sure}</td>
-            </tr>
-        `;
-    });
+    let docTitle = 'Takviye Kullanım Protokolü';
+    if (ivItems.length > 0 && oralItems.length > 0) {
+        docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    } else if (ivItems.length > 0) {
+        docTitle = 'LONGEVITY IV PROTOKOLÜ';
+    }
 
-    const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
-    prescriptionList.forEach(item => {
-        const z = (item.zaman || '').toLowerCase();
-        const entry = {
-            name: escapeXml(item.urunAdi),
-            detail: escapeXml((item.doz || '1 kapsül') + ' · ' + (item.kullanim || 'yemekle'))
-        };
+    let ivTableHtml = '';
+    if (ivItems.length > 0) {
+        const weeksMap = new Map();
+        ivItems.forEach(item => {
+            let w = (item.hafta || item.zaman || '1. Hafta').trim();
+            if (!w.toLowerCase().includes('hafta')) w = w + '. Hafta';
+            if (!weeksMap.has(w)) weeksMap.set(w, []);
+            weeksMap.get(w).push(item);
+        });
 
-        if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-            schedule.sabah.push(entry);
-        } else if (z.includes('öğle') || z.includes('ogle')) {
-            schedule.ogle.push(entry);
-        } else if (z.includes('akşam') || z.includes('aksam')) {
-            schedule.aksam.push(entry);
-        } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-            schedule.yatmadan.push(entry);
-        } else {
-            schedule.sabah.push(entry);
-        }
-    });
+        const sortedWeeks = Array.from(weeksMap.entries()).sort((a, b) => {
+            const numA = parseInt(a[0].match(/\d+/) || '0', 10);
+            const numB = parseInt(b[0].match(/\d+/) || '0', 10);
+            return numA - numB;
+        });
 
-    function renderScheduleBoxWord(title, items) {
-        let content = '';
-        if (items.length === 0) {
-            content = '<div style="color: #9CA3AF; font-size: 14pt; padding: 10pt 0; text-align: center;">—</div>';
-        } else {
-            items.forEach(it => {
-                content += `
-                    <div style="margin-bottom: 6pt; font-size: 9pt; text-align: left;">
-                        <span style="font-size: 10.5pt; color: #4B5563; margin-right: 3pt;">&#9633;</span>
-                        <strong style="color: #111827; font-size: 9.5pt; font-family: 'Segoe UI', Arial, sans-serif;">${it.name}</strong>
-                        <div style="font-size: 8.5pt; color: #4B5563; margin-left: 12pt; margin-top: 1pt;">${it.detail}</div>
-                    </div>
+        let ivRows = '';
+        sortedWeeks.forEach(([wName, wItems]) => {
+            if (wItems.length >= 2) {
+                const item1 = wItems[0];
+                const item2 = wItems[1];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                ivRows += `
+                    <tr style="border-bottom: 1pt solid #E5E7EB;">
+                        <td style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
+                        <td style="padding: 10pt 8pt; width: 35%;">
+                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                        </td>
+                        <td style="padding: 10pt 4pt; font-weight: bold; font-size: 13pt; color: #111827; text-align: center; width: 8%;">+</td>
+                        <td style="padding: 10pt 8pt; width: 35%;">
+                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
+                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
+                        </td>
+                    </tr>
                 `;
-            });
+            } else {
+                const item1 = wItems[0];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                ivRows += `
+                    <tr style="border-bottom: 1pt solid #E5E7EB;">
+                        <td style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
+                        <td colspan="3" style="padding: 10pt 8pt; width: 78%;">
+                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        ivTableHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 13pt; font-weight: bold; color: #111827; margin: 16pt 0 8pt 0;">IV PROTOKOLÜ</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
+                <thead>
+                    <tr>
+                        <th style="width: 22%; background: #F0F4F6; border-top: 1.5pt solid #869FA8; border-bottom: 1.5pt solid #869FA8;"></th>
+                        <th colspan="3" style="width: 78%; background: #F0F4F6; color: #111827; font-size: 9.5pt; font-weight: bold; padding: 8pt; border-top: 1.5pt solid #869FA8; border-bottom: 1.5pt solid #869FA8;">İçerik</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${ivRows}
+                </tbody>
+            </table>
+            <p style="font-size: 8.5pt; color: #6B7280; margin-bottom: 16pt;">
+                Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+            </p>
+        `;
+
+        if (oralItems.length > 0) {
+            ivTableHtml += `<br clear="all" style="mso-special-character:line-break;page-break-before:always">`;
+        }
+    }
+
+    let oralTableHtml = '';
+    if (oralItems.length > 0) {
+        let rowsHtml = '';
+        oralItems.forEach((item, idx) => {
+            const num = idx + 1;
+            const urunAdi = escapeXml(item.urunAdi || '');
+            const marka = escapeXml(item.marka || '');
+            const titrationNote = item.not 
+                ? `<div style="font-size: 9pt; color: #869FA8; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
+                : '';
+            const doz = escapeXml(item.doz || '1 x 1 kapsül');
+            const siklik = escapeXml(item.siklik || 'Günde 1 kez');
+            const zaman = escapeXml(item.zaman || 'Sabah');
+            const kullanim = escapeXml(item.kullanim || 'Yemekten sonra');
+            const sure = escapeXml(item.sure || '3 ay');
+
+            rowsHtml += `
+                <tr style="border-bottom: 1pt solid #E5E7EB;">
+                    <td style="padding: 9pt 6pt; font-size: 10pt; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
+                    <td style="padding: 9pt 8pt; vertical-align: top; width: 34%;">
+                        <div style="font-size: 10.5pt; font-weight: bold; color: #111827; font-family: 'Poppins', Arial, sans-serif;">${urunAdi}</div>
+                        <div style="font-size: 8.5pt; color: #6B7280; margin-top: 1pt;">${marka}</div>
+                        ${titrationNote}
+                    </td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${doz}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${siklik}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${zaman}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${kullanim}</td>
+                    <td style="padding: 9pt 6pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 10%;">${sure}</td>
+                </tr>
+            `;
+        });
+
+        oralTableHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Takviye Listesi</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
+                <thead>
+                    <tr>
+                        <th style="width: 4%; text-align: center;">#</th>
+                        <th style="width: 34%;">TAKVİYE</th>
+                        <th style="width: 12%;">DOZ</th>
+                        <th style="width: 14%;">SIKLIK</th>
+                        <th style="width: 12%;">ZAMAN</th>
+                        <th style="width: 14%;">KULLANIM</th>
+                        <th style="width: 10%;">SÜRE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    let scheduleCardsHtml = '';
+    if (oralItems.length > 0 && ivItems.length === 0) {
+        const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
+        oralItems.forEach(item => {
+            const z = (item.zaman || '').toLowerCase();
+            const entry = {
+                name: escapeXml(item.urunAdi),
+                detail: escapeXml((item.doz || '1 kapsül') + ' · ' + (item.kullanim || 'yemekle'))
+            };
+
+            if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
+                schedule.sabah.push(entry);
+            } else if (z.includes('öğle') || z.includes('ogle')) {
+                schedule.ogle.push(entry);
+            } else if (z.includes('akşam') || z.includes('aksam')) {
+                schedule.aksam.push(entry);
+            } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
+                schedule.yatmadan.push(entry);
+            } else {
+                schedule.sabah.push(entry);
+            }
+        });
+
+        function renderScheduleBoxWord(title, items) {
+            let content = '';
+            if (items.length === 0) {
+                content = '<div style="color: #9CA3AF; font-size: 14pt; padding: 10pt 0; text-align: center;">—</div>';
+            } else {
+                items.forEach(it => {
+                    content += `
+                        <div style="margin-bottom: 6pt; font-size: 9pt; text-align: left;">
+                            <span style="font-size: 10.5pt; color: #4B5563; margin-right: 3pt;">&#9633;</span>
+                            <strong style="color: #111827; font-size: 9.5pt; font-family: 'Poppins', Arial, sans-serif;">${it.name}</strong>
+                            <div style="font-size: 8.5pt; color: #4B5563; margin-left: 12pt; margin-top: 1pt;">${it.detail}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            return `
+                <td style="width: 25%; vertical-align: top; padding: 3pt;">
+                    <table style="width: 100%; border: 1pt solid #D1D5DB; border-radius: 6pt; background: #FFFFFF; border-collapse: separate; padding: 8pt;">
+                        <tr>
+                            <td style="border: none; padding-bottom: 6pt;">
+                                <span style="font-size: 8.5pt; font-weight: bold; color: #869FA8; letter-spacing: 0.8pt; text-transform: uppercase;">${title}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="border: none;">
+                                ${content}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            `;
         }
 
-        return `
-            <td style="width: 25%; vertical-align: top; padding: 3pt;">
-                <table style="width: 100%; border: 1pt solid #D1D5DB; border-radius: 6pt; background: #FFFFFF; border-collapse: separate; padding: 8pt;">
-                    <tr>
-                        <td style="border: none; padding-bottom: 6pt;">
-                            <span style="font-size: 8.5pt; font-weight: bold; color: #869FA8; letter-spacing: 0.8pt; text-transform: uppercase;">${title}</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="border: none;">
-                            ${content}
-                        </td>
-                    </tr>
-                </table>
-            </td>
+        scheduleCardsHtml = `
+            <div class="section-heading">Kullanım Çizelgesi</div>
+            <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 20pt;">
+                <tr>
+                    ${renderScheduleBoxWord('SABAH', schedule.sabah)}
+                    ${renderScheduleBoxWord('ÖĞLE', schedule.ogle)}
+                    ${renderScheduleBoxWord('AKŞAM', schedule.aksam)}
+                    ${renderScheduleBoxWord('YATMADAN', schedule.yatmadan)}
+                </tr>
+            </table>
         `;
     }
 
     const danisanDisplay = danisan 
-        ? `<b style="color: #111827; font-size: 11pt;">${escapeXml(danisan)}</b>`
+        ? `<b style="color: #111827; font-size: 11pt;">${escapeXml(danisan)}</b>` 
         : '<span style="color: #9CA3AF;">................................................</span>';
 
     const logoHtml = (typeof LARA_LOGO_B64 !== 'undefined' && LARA_LOGO_B64)
@@ -2755,7 +3321,7 @@ async function downloadPrescriptionWord() {
       xmlns="http://www.w3.org/TR/REC-html40">
 <head>
 <meta charset="utf-8">
-<title>Takviye Kullanım Protokolü • LaraHealth</title>
+<title>${escapeXml(docTitle)} • LaraHealth</title>
 <!--[if gte mso 9]>
 <xml>
  <w:WordDocument>
@@ -2821,80 +3387,38 @@ body {
     width: 100%;
     border-collapse: collapse;
     border: none;
-    margin-top: 32pt;
+    margin-top: 24pt;
 }
 </style>
 </head>
 <body>
-    <!-- Top Green Accent Line -->
     <div style="height: 3.5pt; background: #869FA8; width: 100%; margin-bottom: 12pt;"></div>
 
-    <!-- Header: Logo & Title on Left, Meta on Right -->
+    <div class="main-title">${escapeXml(docTitle)}</div>
+
     <table class="header-table">
         <tr>
-            <td style="vertical-align: middle; width: 45%; border: none;">
-                ${logoHtml}
-                <div class="main-title">Takviye Kullanım Protokolü</div>
-                
+            <td style="border: none; text-align: left; vertical-align: top; padding-right: 12pt; width: 50%;">
+                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">DANIŞAN</div>
+                <div style="font-size: 10.5pt; padding-top: 2pt; border-bottom: 1pt dotted #9CA3AF;">
+                    ${danisanDisplay}
+                </div>
             </td>
-            <td style="vertical-align: middle; width: 55%; border: none; text-align: right;">
-                <table style="width: 100%; border-collapse: collapse; border: none;">
-                    <tr>
-                        <td style="border: none; text-align: left; vertical-align: top; padding-right: 12pt; width: 50%;">
-                            <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">DANIŞAN</div>
-                            <div style="font-size: 10.5pt; padding-top: 2pt; border-bottom: 1pt dotted #9CA3AF;">
-                                ${danisanDisplay}
-                            </div>
-                        </td>
-                        <td style="border: none; text-align: left; vertical-align: top; padding-right: 10pt; width: 25%;">
-                            <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">TARİH</div>
-                            <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${tarih}</div>
-                        </td>
-                        <td style="border: none; text-align: left; vertical-align: top; width: 25%;">
-                            <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">KONTROL</div>
-                            <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${kontrol}</div>
-                        </td>
-                    </tr>
-                </table>
+            <td style="border: none; text-align: left; vertical-align: top; padding-right: 10pt; width: 25%;">
+                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">TARİH</div>
+                <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${escapeXml(tarih)}</div>
+            </td>
+            <td style="border: none; text-align: left; vertical-align: top; width: 25%;">
+                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">KONTROL</div>
+                <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${escapeXml(kontrol)}</div>
             </td>
         </tr>
     </table>
 
-    <!-- Takviye Listesi -->
-    <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Takviye Listesi</div>
+    ${ivTableHtml}
+    ${oralTableHtml}
+    ${scheduleCardsHtml}
 
-    <!-- Main Table (7 Columns) -->
-    <table class="plan-table">
-        <thead>
-            <tr>
-                <th style="width: 4%; text-align: center;">#</th>
-                <th style="width: 34%;">TAKVİYE</th>
-                <th style="width: 12%;">DOZ</th>
-                <th style="width: 14%;">SIKLIK</th>
-                <th style="width: 12%;">ZAMAN</th>
-                <th style="width: 14%;">KULLANIM</th>
-                <th style="width: 10%;">SÜRE</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${rowsHtml}
-        </tbody>
-    </table>
-
-    <!-- Kullanım Çizelgesi -->
-    <div class="section-heading">Kullanım Çizelgesi</div>
-
-    <!-- 4 Cards Row -->
-    <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 20pt;">
-        <tr>
-            ${renderScheduleBoxWord('SABAH', schedule.sabah)}
-            ${renderScheduleBoxWord('ÖĞLE', schedule.ogle)}
-            ${renderScheduleBoxWord('AKŞAM', schedule.aksam)}
-            ${renderScheduleBoxWord('YATMADAN', schedule.yatmadan)}
-        </tr>
-    </table>
-
-    <!-- Footer: Disclaimer on Left, Signature on Right -->
     <table class="footer-table">
         <tr>
             <td style="width: 60%; vertical-align: top; border: none; padding-right: 20pt;">
@@ -2909,10 +3433,11 @@ body {
                 <div style="width: 85%; margin-left: auto; margin-right: 0; text-align: center;">
                     <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
                     <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">
-                        ${diyetisyen}
+                        ${escapeXml(diyetisyen)}
                     </div>
                     <div style="font-size: 9.5pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">
-                        Longevity ve Bütüncül Sağlık Danışmanı</div>
+                        Longevity ve Bütüncül Sağlık Danışmanı
+                    </div>
                 </div>
             </td>
         </tr>
@@ -2943,92 +3468,204 @@ function printPrescription() {
     const kontrol = rxMetadata.kontrol || calculateDefaultControlDate();
     const diyetisyen = rxMetadata.kimden || 'Diyetisyen Betül Çetin';
 
-    let rowsHtml = '';
-    prescriptionList.forEach((item, idx) => {
-        const num = idx + 1;
-        const titrationNote = item.not 
-            ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
-            : '';
-        rowsHtml += `
-            <tr style="border-bottom: 1px solid #E5E7EB;">
-                <td style="padding: 10px 8px; font-size: 12px; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
-                <td style="padding: 10px 8px; vertical-align: top; width: 34%;">
-                    <div style="font-size: 13px; font-weight: bold; color: #111827;">${escapeXml(item.urunAdi)}</div>
-                    <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(item.marka)}</div>
-                    ${titrationNote}
-                </td>
-                <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.doz || '-')}</td>
-                <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.siklik || '-')}</td>
-                <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.zaman || '-')}</td>
-                <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.kullanim || '-')}</td>
-                <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 10%;">${escapeXml(item.sure || '-')}</td>
-            </tr>
-        `;
-    });
+    const ivItems = prescriptionList.filter(isIVProduct);
+    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
 
-    const scheduleHtml = buildDailyScheduleHtml(prescriptionList);
+    let docTitle = 'Takviye Kullanım Protokolü';
+    if (ivItems.length > 0 && oralItems.length > 0) {
+        docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    } else if (ivItems.length > 0) {
+        docTitle = 'LONGEVITY IV PROTOKOLÜ';
+    }
+
+    let ivSectionHtml = '';
+    if (ivItems.length > 0) {
+        const weeksMap = new Map();
+        ivItems.forEach(item => {
+            let w = (item.hafta || item.zaman || '1. Hafta').trim();
+            if (!w.toLowerCase().includes('hafta')) w = w + '. Hafta';
+            if (!weeksMap.has(w)) weeksMap.set(w, []);
+            weeksMap.get(w).push(item);
+        });
+
+        const sortedWeeks = Array.from(weeksMap.entries()).sort((a, b) => {
+            const numA = parseInt(a[0].match(/\d+/) || '0', 10);
+            const numB = parseInt(b[0].match(/\d+/) || '0', 10);
+            return numA - numB;
+        });
+
+        let ivRows = '';
+        sortedWeeks.forEach(([wName, wItems]) => {
+            if (wItems.length >= 2) {
+                const item1 = wItems[0];
+                const item2 = wItems[1];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                ivRows += `
+                    <tr style="border-bottom: 1px solid #E5E7EB;">
+                        <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
+                        <td style="padding: 10px 8px; width: 35%;">
+                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                        </td>
+                        <td style="padding: 10px 4px; font-weight: bold; font-size: 16px; color: #111827; text-align: center; width: 8%;">+</td>
+                        <td style="padding: 10px 8px; width: 35%;">
+                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
+                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                const item1 = wItems[0];
+                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                ivRows += `
+                    <tr style="border-bottom: 1px solid #E5E7EB;">
+                        <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
+                        <td colspan="3" style="padding: 10px 8px; width: 78%;">
+                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        ivSectionHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: bold; color: #111827; margin: 18px 0 8px 0;">IV PROTOKOLÜ</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
+                <thead>
+                    <tr>
+                        <th style="width: 22%; background: #F0F4F6; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8;"></th>
+                        <th colspan="3" style="width: 78%; background: #F0F4F6; color: #111827; font-size: 12px; font-weight: bold; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8;">İçerik</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${ivRows}
+                </tbody>
+            </table>
+            <p style="font-size: 11px; color: #6B7280; margin-bottom: 18px;">
+                Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+            </p>
+        `;
+
+        if (oralItems.length > 0) {
+            ivSectionHtml += `<div style="page-break-after: always;"></div>`;
+        }
+    }
+
+    let oralSectionHtml = '';
+    if (oralItems.length > 0) {
+        let rowsHtml = '';
+        oralItems.forEach((item, idx) => {
+            const num = idx + 1;
+            const titrationNote = item.not 
+                ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
+                : '';
+            rowsHtml += `
+                <tr style="border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 10px 8px; font-size: 12px; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
+                    <td style="padding: 10px 8px; vertical-align: top; width: 34%;">
+                        <div style="font-size: 13px; font-weight: bold; color: #111827;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(item.marka)}</div>
+                        ${titrationNote}
+                    </td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.doz || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.siklik || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.zaman || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.kullanim || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 10%;">${escapeXml(item.sure || '-')}</td>
+                </tr>
+            `;
+        });
+
+        oralSectionHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Takviye Listesi</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <thead>
+                    <tr>
+                        <th style="width: 4%; text-align: center;">#</th>
+                        <th style="width: 34%;">TAKVİYE</th>
+                        <th style="width: 12%;">DOZ</th>
+                        <th style="width: 14%;">SIKLIK</th>
+                        <th style="width: 12%;">ZAMAN</th>
+                        <th style="width: 14%;">KULLANIM</th>
+                        <th style="width: 10%;">SÜRE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    let schedulePrintHtml = '';
+    if (oralItems.length > 0 && ivItems.length === 0) {
+        schedulePrintHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Kullanım Çizelgesi</div>
+            ${buildDailyScheduleHtml(prescriptionList)}
+        `;
+    }
+
     const danisanDisplay = danisan || '................................................';
 
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Takviye Kullanım Protokolü • LaraHealth</title>
+            <title>${escapeXml(docTitle)} • LaraHealth</title>
             <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 28px; color: #111827; }
+                body { font-family: 'Poppins', 'Segoe UI', Arial, sans-serif; padding: 28px; color: #111827; }
                 @media print { body { padding: 0; } }
                 .plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
                 .plan-table th { background: #F0F4F6; color: #111827; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8; text-align: left; }
-                .schedule-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 28px; }
-                .schedule-slot-card { border: 1.5px solid #D1D5DB; border-radius: 8px; padding: 10px; min-height: 100px; }
-                .schedule-slot-header { font-size: 11px; font-weight: 800; color: #869FA8; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
-                .schedule-item-pill { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 4px; padding: 4px 6px; font-size: 11px; margin-bottom: 6px; }
+                .schedule-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+                .schedule-card { border: 1px solid #D1D5DB; border-radius: 8px; padding: 12px; background: #FFFFFF; }
+                .schedule-card-header { font-size: 11px; font-weight: 800; color: #869FA8; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
             </style>
         </head>
         <body>
-            <div style="height: 4px; background: #869FA8; margin-bottom: 16px;"></div>
-            <div style="text-align: center; margin-bottom: 16px;">
-                <div style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: bold; color: #111827;">Takviye Kullanım Protokolü</div>
+            <div style="height: 4px; background: #869FA8; width: 100%; margin-bottom: 16px;"></div>
+            <div style="font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: bold; color: #111827; text-align: center; margin-bottom: 16px;">
+                ${escapeXml(docTitle)}
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    ${(typeof LARA_LOGO_B64 !== 'undefined' && LARA_LOGO_B64) 
-                        ? `<img src="data:image/png;base64,${LARA_LOGO_B64}" style="height: 42px; width: auto; object-fit: contain;" alt="LaraHealth">` 
-                        : ''}
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #D1D5DB; padding-bottom: 12px; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase;">DANIŞAN</div>
+                    <div style="font-size: 15px; font-weight: bold; color: #111827; margin-top: 2px;">${escapeXml(danisanDisplay)}</div>
                 </div>
-                <div style="display: flex; gap: 24px; text-align: left;">
-                    <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">DANIŞAN</div><div style="border-bottom: 1px dotted #9CA3AF; padding-top: 2px; font-weight: bold;">${danisanDisplay}</div></div>
-                    <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">TARİH</div><div style="font-weight: bold; padding-top: 2px;">${tarih}</div></div>
-                    <div><div style="font-size: 10px; font-weight: bold; color: #6B7280;">KONTROL</div><div style="font-weight: bold; padding-top: 2px;">${kontrol}</div></div>
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase;">TARİH</div>
+                    <div style="font-size: 15px; font-weight: bold; color: #111827; margin-top: 2px;">${escapeXml(tarih)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase;">KONTROL</div>
+                    <div style="font-size: 15px; font-weight: bold; color: #111827; margin-top: 2px;">${escapeXml(kontrol)}</div>
                 </div>
             </div>
-            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin-bottom: 8px;">Takviye Listesi</div>
-            <table class="plan-table">
-                <thead>
-                    <tr>
-                        <th style="color: #111827;">#</th><th style="color: #111827;">TAKVİYE</th><th style="color: #111827;">DOZ</th><th style="color: #111827;">SIKLIK</th><th style="color: #111827;">ZAMAN</th><th style="color: #111827;">KULLANIM</th><th style="color: #111827;">SÜRE</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            <div style="font-family: 'Poppins', sans-serif; font-size: 11pt; font-weight: bold; color: #111827; margin-bottom: 10px;">Kullanım Çizelgesi</div>
-            ${scheduleHtml}
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 40px;">
-                <div style="font-size: 11px; color: #6B7280; width: 60%; line-height: 1.5;">
+
+            ${ivSectionHtml}
+            ${oralSectionHtml}
+            ${schedulePrintHtml}
+
+            <div style="display: flex; justify-content: space-between; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <div style="max-width: 55%; font-size: 11px; color: #6B7280; line-height: 1.5;">
                     Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+                    <div style="margin-top: 6px; font-size: 10px; color: #9CA3AF;">Kadıköy, İstanbul • 0216 912 07 02 • www.larahealth.com</div>
                 </div>
-                <div style="width: 35%; text-align: center;">
-                    <div style="border-bottom: 1.5px solid #111827; margin-bottom: 6px;"></div>
-                    <div style="font-family: Georgia, serif; font-size: 13pt; font-family: \'Poppins\', sans-serif;; font-weight: bold;">${diyetisyen}</div>
-                    <div style="font-size: 11px; color: #869FA8; font-weight: bold; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                <div style="text-align: center; min-width: 220px;">
+                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">${escapeXml(diyetisyen)}</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
                 </div>
             </div>
         </body>
         </html>
     `);
     printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 400);
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 250);
 }
+
 
 function copyPrescriptionText() {
     if (prescriptionList.length === 0) {
