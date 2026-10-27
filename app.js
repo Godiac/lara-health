@@ -2672,6 +2672,26 @@ function renderRxDrawerBody() {
 }
 
 
+const SLOT_KEYS = ['sabah', 'ogle', 'aksam', 'yatmadan'];
+const SLOT_LABELS = {
+    sabah: 'SABAH',
+    ogle: 'ÖĞLE',
+    aksam: 'AKŞAM',
+    yatmadan: 'YATMADAN'
+};
+const SLOT_ICONS = {
+    sabah: '🌅',
+    ogle: '☀️',
+    aksam: '🌙',
+    yatmadan: '⭐'
+};
+const SLOT_NAMES_TR = {
+    sabah: 'Sabah',
+    ogle: 'Öğle',
+    aksam: 'Akşam',
+    yatmadan: 'Yatmadan'
+};
+
 function getItemScheduleSlot(item) {
     const z = (item.zaman || '').toLowerCase();
     if (z.includes('öğle') || z.includes('ogle')) return 'ogle';
