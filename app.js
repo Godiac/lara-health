@@ -119,21 +119,30 @@ function unlockAppWithData(data) {
 window.lockClinicApp = function() {
     try {
         localStorage.removeItem('lara_clinic_pin_auth');
-        sessionStorage.removeItem('lara_clinic_pin_auth');
+        sessionStorage.removeItem('lara_clinic_pin_session');
+        sessionStorage.removeItem('lara_clinic_pin_time');
     } catch(e) {}
     window.location.reload();
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Check auto-login
+    // Security check: Only allow active browser session with 45-min inactivity timeout
     try {
-        const saved = localStorage.getItem('lara_clinic_pin_auth') || sessionStorage.getItem('lara_clinic_pin_auth');
-        if (saved) {
-            const decrypted = decryptClinicDatabase(saved);
+        localStorage.removeItem('lara_clinic_pin_auth');
+        const savedPin = sessionStorage.getItem('lara_clinic_pin_session');
+        const savedTime = parseInt(sessionStorage.getItem('lara_clinic_pin_time') || '0', 10);
+        const SESSION_TIMEOUT = 45 * 60 * 1000; // 45 minutes
+        
+        if (savedPin && (Date.now() - savedTime < SESSION_TIMEOUT)) {
+            const decrypted = decryptClinicDatabase(savedPin);
             if (decrypted && decrypted.length > 0) {
+                sessionStorage.setItem('lara_clinic_pin_time', String(Date.now()));
                 unlockAppWithData(decrypted);
                 return;
             }
+        } else {
+            sessionStorage.removeItem('lara_clinic_pin_session');
+            sessionStorage.removeItem('lara_clinic_pin_time');
         }
     } catch(e) {}
     
@@ -1250,7 +1259,7 @@ function renderProductsGrid(products, isIncremental = false) {
 
         const hasImg = p.gorsel && p.gorsel.trim();
         const imgEl = hasImg
-            ? `<img src="${p.gorsel}" alt="${p.urunAdi}" onerror="this.onerror=null; this.src='https://placehold.co/400x400/E8F5E9/0D5C3A?text=LaraHealth';">`
+            ? `<img src="${p.gorsel}" alt="${p.urunAdi}" onerror="this.onerror=null; this.src='https://placehold.co/400x400/E8F5E9/869FA8?text=LaraHealth';">`
             : `<div class="card-no-img"><span>💊</span></div>`;
 
         let dosageHtml = '';
@@ -1854,7 +1863,7 @@ function renderReadyProtocolsHtml() {
     allProtocols.forEach(proto => {
         let itemsListHtml = '';
         proto.supplements.forEach(sup => {
-            const extraNote = sup.not ? ` · <span style="color: #0D7A57; font-weight: 600;">${sup.not}</span>` : '';
+            const extraNote = sup.not ? ` · <span style="color: #869FA8; font-weight: 600;">${sup.not}</span>` : '';
             itemsListHtml += `
                 <div class="protocol-item-row">
                     <span class="protocol-item-name">💊 <strong>${sup.urunAdi}</strong> <small style="color:#64748B;">(${sup.marka})</small>${extraNote}</span>
@@ -1868,7 +1877,7 @@ function renderReadyProtocolsHtml() {
                 <div class="protocol-card-header">
                     <div>
                         <div class="protocol-card-name">${proto.name}</div>
-                        <div style="font-size: 11px; color: #0D5C3A; font-weight: 600; margin-top: 2px;">${proto.badge || ''}</div>
+                        <div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 2px;">${proto.badge || ''}</div>
                     </div>
                     <div class="protocol-card-badges">
                         <span class="protocol-badge-duration">⏱️ ${proto.duration}</span>
@@ -2050,7 +2059,7 @@ function renderRxDrawerBody() {
             <div class="plan-signature-area">
                 <div class="plan-sig-line"></div>
                 <div class="plan-sig-name">Diyetisyen Betül Çetin</div>
-                <div class="plan-sig-title">Uzman Klinik Diyetisyen</div>
+                <div class="plan-sig-title">Nutrigenetik • Longevity • Mikrobiyata</div>
             </div>
         </div>
     `;
@@ -2300,7 +2309,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
       </w:pPr>
       <w:r>
         <w:rPr>
-          <w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/>
+          <w:rFonts w:ascii="Poppins" w:hAnsi="Poppins" w:cs="Poppins"/>
           <w:b/>
           <w:sz w:val="38"/>
           <w:color w:val="111827"/>
@@ -2329,18 +2338,18 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
       <w:tr>
         <w:tc>
           <w:tcPr><w:tcW w:w="4592" w:type="dxa"/></w:tcPr>
-          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>DANIŞAN</w:t></w:r></w:p>
-          <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${safeDanisan}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>DANIŞAN</w:t></w:r></w:p>
+          <w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${safeDanisan}</w:t></w:r></w:p>
         </w:tc>
         <w:tc>
           <w:tcPr><w:tcW w:w="2296" w:type="dxa"/></w:tcPr>
-          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>TARİH</w:t></w:r></w:p>
-          <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="21"/><w:color w:val="111827"/></w:rPr><w:t>${safeTarih}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>TARİH</w:t></w:r></w:p>
+          <w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="21"/><w:color w:val="111827"/></w:rPr><w:t>${safeTarih}</w:t></w:r></w:p>
         </w:tc>
         <w:tc>
           <w:tcPr><w:tcW w:w="2296" w:type="dxa"/></w:tcPr>
-          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>KONTROL</w:t></w:r></w:p>
-          <w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="21"/><w:color w:val="111827"/></w:rPr><w:t>${safeKontrol}</w:t></w:r></w:p>
+          <w:p><w:pPr><w:spacing w:after="20"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr><w:t>KONTROL</w:t></w:r></w:p>
+          <w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="21"/><w:color w:val="111827"/></w:rPr><w:t>${safeKontrol}</w:t></w:r></w:p>
         </w:tc>
       </w:tr>
     </w:tbl>
@@ -2350,8 +2359,8 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
       <w:tblPr>
         <w:tblW w:w="9184" w:type="dxa"/>
         <w:tblBorders>
-          <w:top w:val="single" w:sz="12" w:space="0" w:color="0D5C3A"/>
-          <w:bottom w:val="single" w:sz="12" w:space="0" w:color="0D5C3A"/>
+          <w:top w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+          <w:bottom w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
           <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E5E7EB"/>
           <w:left w:val="none"/><w:right w:val="none"/><w:insideV w:val="none"/>
         </w:tblBorders>
@@ -2366,13 +2375,13 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
       </w:tblGrid>
       <w:tr>
         <w:trPr><w:tblHeader/></w:trPr>
-        <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
-        <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="EDF5F0"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>TAKVİYE</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
       </w:tr>
     `;
 
@@ -2390,7 +2399,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         if (it.not) {
             noteXml = `
             <w:p><w:pPr><w:spacing w:before="30" w:after="0"/></w:pPr>
-              <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:i/><w:b/><w:sz w:val="15"/><w:color w:val="0D7A57"/></w:rPr>
+              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color="869FA8"/></w:rPr>
               <w:t>${escapeDocXml(it.not)}</w:t></w:r>
             </w:p>
             `;
@@ -2398,17 +2407,17 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 
         xml += `
         <w:tr>
-          <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>${num}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>${num}</w:t></w:r></w:p></w:tc>
           <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/></w:tcPr>
-            <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr><w:t>${name}</w:t></w:r></w:p>
-            <w:p><w:pPr><w:spacing w:before="20" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${brand}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr><w:t>${name}</w:t></w:r></w:p>
+            <w:p><w:pPr><w:spacing w:before="20" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${brand}</w:t></w:r></w:p>
             ${noteXml}
           </w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${dose}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${freq}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${time}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${usage}</w:t></w:r></w:p></w:tc>
-          <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${duration}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${dose}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${freq}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${time}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${usage}</w:t></w:r></w:p></w:tc>
+          <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${duration}</w:t></w:r></w:p></w:tc>
         </w:tr>
         `;
     });
@@ -2418,7 +2427,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
     // 4. Günlük Çizelge
     xml += `
     <w:p><w:pPr><w:spacing w:before="300" w:after="140"/></w:pPr>
-      <w:r><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr>
+      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr>
       <w:t>Günlük çizelge</w:t></w:r>
     </w:p>
     `;
@@ -2476,10 +2485,10 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                 itemsXml += `
                 <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
                   <w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>
-                  <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
                 </w:p>
                 <w:p><w:pPr><w:ind w:left="240"/><w:spacing w:before="0" w:after="40"/></w:pPr>
-                  <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
                 </w:p>
                 `;
             });
@@ -2500,7 +2509,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tcPr>
           <w:p>
             <w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="E5E7EB"/></w:pBdr><w:spacing w:after="80"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
+            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
           </w:p>
           ${itemsXml}
         </w:tc>
@@ -2526,17 +2535,17 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         <w:tc>
           <w:tcPr><w:tcW w:w="5510" w:type="dxa"/></w:tcPr>
           <w:p><w:pPr><w:spacing w:before="300" w:after="40"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
             <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
           </w:p>
         </w:tc>
         <w:tc>
           <w:tcPr><w:tcW w:w="3674" w:type="dxa"/></w:tcPr>
           <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
+            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
           </w:p>
           <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI"/><w:b/><w:sz w:val="16"/><w:color w:val="0D5C3A"/></w:rPr><w:t>Uzman Klinik Diyetisyen &amp; Beslenme Danışmanı</w:t></w:r>
+            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Nutrigenetik &#x2022; Longevity &#x2022; Mikrobiyata</w:t></w:r>
           </w:p>
         </w:tc>
       </w:tr>
@@ -2600,7 +2609,7 @@ async function downloadPrescriptionWord() {
         const urunAdi = escapeXml(item.urunAdi || '');
         const marka = escapeXml(item.marka || '');
         const titrationNote = item.not 
-            ? `<div style="font-size: 9pt; color: #0D7A57; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
+            ? `<div style="font-size: 9pt; color: #869FA8; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
             : '';
         const doz = escapeXml(item.doz || '1 x 1 kapsül');
         const siklik = escapeXml(item.siklik || 'Günde 1 kez');
@@ -2667,7 +2676,7 @@ async function downloadPrescriptionWord() {
                 <table style="width: 100%; border: 1pt solid #D1D5DB; border-radius: 6pt; background: #FFFFFF; border-collapse: separate; padding: 8pt;">
                     <tr>
                         <td style="border: none; padding-bottom: 6pt;">
-                            <span style="font-size: 8.5pt; font-weight: bold; color: #0D5C3A; letter-spacing: 0.8pt; text-transform: uppercase;">${title}</span>
+                            <span style="font-size: 8.5pt; font-weight: bold; color: #869FA8; letter-spacing: 0.8pt; text-transform: uppercase;">${title}</span>
                         </td>
                     </tr>
                     <tr>
@@ -2711,7 +2720,7 @@ async function downloadPrescriptionWord() {
     mso-page-orientation: portrait;
 }
 body {
-    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
     font-size: 9.5pt;
     line-height: 1.45;
     color: #111827;
@@ -2724,7 +2733,7 @@ body {
     margin-bottom: 14pt;
 }
 .main-title {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: 'Poppins', Georgia, serif;
     font-size: 22pt;
     font-weight: bold;
     color: #111827;
@@ -2736,19 +2745,19 @@ body {
     margin-bottom: 20pt;
 }
 .plan-table th {
-    background-color: #EDF5F0;
-    color: #0D5C3A;
+    background-color: #F0F4F6;
+    color: #869FA8;
     font-size: 8.5pt;
     font-weight: bold;
     letter-spacing: 0.8pt;
     text-align: left;
     padding: 7pt 8pt;
-    border-top: 1.5pt solid #0D5C3A;
-    border-bottom: 1.5pt solid #0D5C3A;
+    border-top: 1.5pt solid #869FA8;
+    border-bottom: 1.5pt solid #869FA8;
     text-transform: uppercase;
 }
 .section-heading {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: 'Poppins', Georgia, serif;
     font-size: 13.5pt;
     font-weight: bold;
     color: #111827;
@@ -2765,7 +2774,7 @@ body {
 </head>
 <body>
     <!-- Top Green Accent Line -->
-    <div style="height: 3.5pt; background: #0D5C3A; width: 100%; margin-bottom: 12pt;"></div>
+    <div style="height: 3.5pt; background: #869FA8; width: 100%; margin-bottom: 12pt;"></div>
 
     <!-- Header: Logo & Title on Left, Meta on Right -->
     <table class="header-table">
@@ -2843,12 +2852,11 @@ body {
             <td style="width: 40%; vertical-align: top; border: none; text-align: center;">
                 <div style="width: 85%; margin-left: auto; margin-right: 0; text-align: center;">
                     <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                    <div style="font-size: 11pt; font-weight: bold; color: #111827; font-family: 'Georgia', 'Times New Roman', serif;">
+                    <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">
                         ${diyetisyen}
                     </div>
-                    <div style="font-size: 8.5pt; color: #0D5C3A; font-weight: bold; margin-top: 1pt;">
-                        Uzman Klinik Diyetisyen & Beslenme Danışmanı
-                    </div>
+                    <div style="font-size: 9.5pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">
+                        Nutrigenetik &bull; Longevity &bull; Mikrobiyata</div>
                 </div>
             </td>
         </tr>
@@ -2883,7 +2891,7 @@ function printPrescription() {
     prescriptionList.forEach((item, idx) => {
         const num = idx + 1;
         const titrationNote = item.not 
-            ? `<div style="font-size: 11px; color: #0D7A57; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
+            ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
             : '';
         rowsHtml += `
             <tr style="border-bottom: 1px solid #E5E7EB;">
@@ -2914,15 +2922,15 @@ function printPrescription() {
                 body { font-family: 'Segoe UI', Arial, sans-serif; padding: 28px; color: #111827; }
                 @media print { body { padding: 0; } }
                 .plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-                .plan-table th { background: #EDF5F0; color: #0D5C3A; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #0D5C3A; border-bottom: 2px solid #0D5C3A; text-align: left; }
+                .plan-table th { background: #F0F4F6; color: #869FA8; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8; text-align: left; }
                 .schedule-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 28px; }
                 .schedule-slot-card { border: 1.5px solid #D1D5DB; border-radius: 8px; padding: 10px; min-height: 100px; }
-                .schedule-slot-header { font-size: 11px; font-weight: 800; color: #0D5C3A; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
+                .schedule-slot-header { font-size: 11px; font-weight: 800; color: #869FA8; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
                 .schedule-item-pill { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 4px; padding: 4px 6px; font-size: 11px; margin-bottom: 6px; }
             </style>
         </head>
         <body>
-            <div style="height: 4px; background: #0D5C3A; margin-bottom: 16px;"></div>
+            <div style="height: 4px; background: #869FA8; margin-bottom: 16px;"></div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <div style="display: flex; align-items: center; gap: 16px;">
                     ${(typeof LARA_LOGO_B64 !== 'undefined' && LARA_LOGO_B64) 
@@ -2955,8 +2963,8 @@ function printPrescription() {
                 </div>
                 <div style="width: 35%; text-align: center;">
                     <div style="border-bottom: 1.5px solid #111827; margin-bottom: 6px;"></div>
-                    <div style="font-family: Georgia, serif; font-size: 15px; font-weight: bold;">${diyetisyen}</div>
-                    <div style="font-size: 11px; color: #0D5C3A; font-weight: bold; margin-top: 2px;">Uzman Klinik Diyetisyen</div>
+                    <div style="font-family: Georgia, serif; font-size: 13pt; font-family: \'Poppins\', sans-serif;; font-weight: bold;">${diyetisyen}</div>
+                    <div style="font-size: 11px; color: #869FA8; font-weight: bold; margin-top: 2px;">Nutrigenetik • Longevity • Mikrobiyata</div>
                 </div>
             </div>
         </body>
