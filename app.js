@@ -2059,7 +2059,7 @@ function renderRxDrawerBody() {
             <div class="plan-signature-area">
                 <div class="plan-sig-line"></div>
                 <div class="plan-sig-name">Diyetisyen Betül Çetin</div>
-                <div class="plan-sig-title">Nutrigenetik • Longevity • Mikrobiyata</div>
+                <div class="plan-sig-title">Longevity ve Bütüncül Sağlık Danışmanı</div>
             </div>
         </div>
     `;
@@ -2554,7 +2554,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
             <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
           </w:p>
           <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
-            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Nutrigenetik &#x2022; Longevity &#x2022; Mikrobiyata</w:t></w:r>
+            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
           </w:p>
         </w:tc>
       </w:tr>
@@ -2869,7 +2869,7 @@ body {
                         ${diyetisyen}
                     </div>
                     <div style="font-size: 9.5pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">
-                        Nutrigenetik &bull; Longevity &bull; Mikrobiyata</div>
+                        Longevity ve Bütüncül Sağlık Danışmanı</div>
                 </div>
             </td>
         </tr>
@@ -2977,7 +2977,7 @@ function printPrescription() {
                 <div style="width: 35%; text-align: center;">
                     <div style="border-bottom: 1.5px solid #111827; margin-bottom: 6px;"></div>
                     <div style="font-family: Georgia, serif; font-size: 13pt; font-family: \'Poppins\', sans-serif;; font-weight: bold;">${diyetisyen}</div>
-                    <div style="font-size: 11px; color: #869FA8; font-weight: bold; margin-top: 2px;">Nutrigenetik • Longevity • Mikrobiyata</div>
+                    <div style="font-size: 11px; color: #869FA8; font-weight: bold; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
                 </div>
             </div>
         </body>
