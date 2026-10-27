@@ -616,6 +616,10 @@ function isModuleMatch(product, mod) {
     const combined = m + ' ' + k + ' ' + t + ' ' + u + ' ' + i;
 
     switch (mod) {
+        case 'İlaçlar (Medikal Tedavi)':
+            return isMedicationProduct(product);
+        case 'IV Therapy':
+            return isIVProduct(product);
         case 'Bağırsak & Mikrobiyota':
             return combined.includes('bağırsak') || combined.includes('mikrobiyota') || combined.includes('gastrointestinal') || combined.includes('probiyotik') || combined.includes('sibo') || combined.includes('gut') || combined.includes('sindirim') || combined.includes('enzim') || combined.includes('leaky');
         case 'Cilt, Saç & Güzellik':
@@ -1185,9 +1189,15 @@ function renderProductsTable(products, isIncremental = false) {
             dosageHtml = `<div class="table-active-dosage">⭐ ${p._active_dosage.rawStr}</div>`;
         }
 
-        const tierBadge = p._purityTier === 1 
-            ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:2px 6px; border-radius:4px; margin-bottom:4px;">✨ SAF FORMÜL</span>`
-            : (p._purityTier === 2 ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:2px 6px; border-radius:4px; margin-bottom:4px;">⚡ SİNERJİK</span>` : '');
+        const isMed = isMedicationProduct(p);
+        const isIV = isIVProduct(p);
+        const tierBadge = isMed
+            ? `<span style="display:inline-block; font-size:10.5px; font-weight:800; color:#1E3A8A; background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 7px; border-radius:4px; margin-bottom:4px;">💊 REÇETELİ İLAÇ (Prof. Dr. Arda Lembet)</span>`
+            : (isIV
+                ? `<span style="display:inline-block; font-size:10.5px; font-weight:800; color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; padding:2px 7px; border-radius:4px; margin-bottom:4px;">💉 IV THERAPY</span>`
+                : (p._purityTier === 1 
+                    ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:2px 6px; border-radius:4px; margin-bottom:4px;">✨ SAF FORMÜL</span>`
+                    : (p._purityTier === 2 ? `<span style="display:inline-block; font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:2px 6px; border-radius:4px; margin-bottom:4px;">⚡ SİNERJİK</span>` : '')));
 
         html += `
             <tr onclick="openDetailModal(${p.id})">
@@ -1267,9 +1277,15 @@ function renderProductsGrid(products, isIncremental = false) {
             dosageHtml = `<div class="card-active-dosage">⭐ ${p._active_dosage.rawStr}</div>`;
         }
 
-        const tierBadge = p._purityTier === 1 
-            ? `<div style="font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">✨ SAF FORMÜL</div>`
-            : (p._purityTier === 2 ? `<div style="font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">⚡ SİNERJİK</div>` : '');
+        const isMed = isMedicationProduct(p);
+        const isIV = isIVProduct(p);
+        const tierBadge = isMed
+            ? `<div style="font-size:10.5px; font-weight:800; color:#1E3A8A; background:#EFF6FF; border:1px solid #BFDBFE; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">💊 REÇETELİ İLAÇ (Prof. Dr. Arda Lembet)</div>`
+            : (isIV
+                ? `<div style="font-size:10.5px; font-weight:800; color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">💉 IV THERAPY (Klinik İnfüzyon)</div>`
+                : (p._purityTier === 1 
+                    ? `<div style="font-size:10px; font-weight:700; color:#047857; background:#D1FAE5; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">✨ SAF FORMÜL</div>`
+                    : (p._purityTier === 2 ? `<div style="font-size:10px; font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:3px 8px; border-radius:12px; display:inline-block; margin-bottom:6px;">⚡ SİNERJİK</div>` : '')));
 
         html += `
             <div class="product-card" onclick="openDetailModal(${p.id})">
@@ -1502,12 +1518,88 @@ function parseSupplementUsage(p) {
     return { doz, siklik, zaman, kullanim, sure, not };
 }
 
+function isMedicationProduct(item) {
+    if (!item) return false;
+    if (item.isMedication === true || item.isIlac === true) return true;
+    const k = (item.kategori || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+    const m = (item.marka || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+    const u = (item.urunAdi || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+    return k === 'ilaç' || k === 'ilac' || k.includes('ilaç') || k.includes('ilac') || k === 'medication' || k === 'reçeteli ilaç' || item.tip === 'ilaç';
+}
+
 function isIVProduct(item) {
     if (!item) return false;
+    if (isMedicationProduct(item)) return false;
     const b = (item.marka || '').toLowerCase();
     const u = (item.urunAdi || '').toUpperCase();
     const k = (item.kategori || '').toLowerCase();
     return b === 'iv therapy' || u.endsWith(' IV') || u.includes(' IV ') || u.includes('IV COCKTAIL') || k.includes('iv therapy') || item.isIV === true;
+}
+
+function getEffectiveHekimMode() {
+    const mode = rxMetadata.hekimSecimi || 'auto';
+    if (mode !== 'auto') {
+        return mode; // 'dietitian' | 'doctor' | 'dual'
+    }
+    const hasMed = prescriptionList.some(isMedicationProduct);
+    const hasSupp = prescriptionList.some(it => !isIVProduct(it) && !isMedicationProduct(it));
+    const hasIV = prescriptionList.some(isIVProduct);
+
+    if (hasMed && (hasSupp || hasIV)) {
+        return 'dual'; // Both medication and supplement/IV -> Ortak Protokol
+    } else if (hasMed) {
+        return 'doctor'; // Only medications -> Prof. Dr. Arda Lembet
+    } else {
+        return 'dietitian'; // Only supplements / IV -> Dyt. Betül Çetin
+    }
+}
+
+function setHekimSecimi(mode) {
+    rxMetadata.hekimSecimi = mode;
+    if (mode === 'doctor') {
+        rxMetadata.kimden = 'Prof. Dr. Arda Lembet';
+    } else if (mode === 'dietitian') {
+        rxMetadata.kimden = 'Diyetisyen Betül Çetin';
+    } else if (mode === 'dual') {
+        rxMetadata.kimden = 'Prof. Dr. Arda Lembet & Dyt. Betül Çetin';
+    }
+    updateRxUI();
+    renderAll();
+}
+
+function addCustomRxItem() {
+    const isMed = confirm('Ekleyeceğiniz ürün bir Farmasötik İLAÇ mı?\n\n[Tamam / OK]: İlaç (Prof. Dr. Arda Lembet Yetkisinde)\n[İptal / Cancel]: Besin Takviyesi (Diyetisyen Betül Çetin Yetkisinde)');
+    const name = prompt(isMed ? 'İlaç Adı ve Formu (örn: Glucophage 1000 mg Film Tablet):' : 'Takviye Adı (örn: Sitikolin 250 mg):');
+    if (!name || !name.trim()) return;
+
+    const dose = prompt('Doz (örn: 1 x 1 tablet / 1 kapsül):', isMed ? '1 x 1 tablet' : '1 x 1 kapsül') || '1 x 1';
+    const time = prompt('Kullanım Zamanı (Sabah / Öğle / Akşam / Yatmadan):', 'Sabah') || 'Sabah';
+    const usage = prompt('Kullanım Notu (örn: Yemek ortasında / Tok / Aç):', isMed ? 'Tok karnına' : 'Yemekten sonra') || 'Tok';
+    const duration = prompt('Kullanım Süresi (örn: 3 ay / Sürekli):', isMed ? 'Sürekli' : '3 ay') || '3 ay';
+
+    prescriptionList.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        productId: null,
+        isIV: false,
+        isMedication: isMed,
+        urunAdi: name.trim(),
+        marka: isMed ? 'Reçeteli Medikal İlaç' : 'Klinik Takviye',
+        doz: dose.trim(),
+        siklik: 'Günde 1 kez',
+        zaman: time.trim(),
+        kullanim: usage.trim(),
+        sure: duration.trim(),
+        not: isMed ? 'Hekim önerisi ile medikal tedavi' : ''
+    });
+
+    rxToastMessage = (isMed ? '💊 "' : '🌿 "') + name.trim() + '" reçete protokolüne eklendi.';
+    updateRxUI();
+    renderAll();
+    setTimeout(() => {
+        rxToastMessage = '';
+        const toastEl = document.getElementById('rxToastBanner');
+        if (toastEl) toastEl.style.display = 'none';
+    }, 3500);
 }
 
 function togglePrescriptionItem(id) {
@@ -1517,6 +1609,7 @@ function togglePrescriptionItem(id) {
     } else {
         const p = ALL_PRODUCTS.find(x => x.id === id);
         if (p) {
+            const isMed = isMedicationProduct(p);
             const isIV = isIVProduct(p);
             if (isIV) {
                 const existingIVCount = prescriptionList.filter(isIVProduct).length;
@@ -1525,22 +1618,43 @@ function togglePrescriptionItem(id) {
                     id: Date.now() + Math.floor(Math.random() * 1000),
                     productId: p.id,
                     isIV: true,
+                    isMedication: false,
                     urunAdi: p.urunAdi,
                     marka: p.marka || 'IV Therapy',
                     hafta: defaultWeek,
-                    doz: (p.urunAdi.toUpperCase().includes('VITAMIN C') ? '7.5 g' : ''),
-                    siklik: 'Haftada 1',
+                    doz: (p.urunAdi.toUpperCase().includes('VITAMIN C') ? '7.5 g' : (p.varsayilanDoz || '')),
+                    siklik: p.varsayilanSiklik || 'Haftada 1',
                     zaman: defaultWeek,
-                    kullanim: 'Damardan (IV İnfüzyon)',
-                    sure: '4 Hafta',
-                    not: ''
+                    kullanim: p.varsayilanKullanim || 'Damardan (IV İnfüzyon)',
+                    sure: p.varsayilanSure || '4 Hafta',
+                    not: p.aciklama || ''
                 });
+            } else if (isMed) {
+                prescriptionList.push({
+                    id: p.id,
+                    productId: p.id,
+                    isIV: false,
+                    isMedication: true,
+                    urunAdi: p.urunAdi,
+                    marka: p.marka || 'Medikal İlaç',
+                    etkenMadde: p.etkenMadde || '',
+                    doz: p.varsayilanDoz || '1 x 1 tablet',
+                    siklik: p.varsayilanSiklik || 'Günde 1 kez',
+                    zaman: p.varsayilanZaman || 'Sabah',
+                    kullanim: p.varsayilanKullanim || 'Tok karnına',
+                    sure: p.varsayilanSure || 'Sürekli',
+                    not: p.aciklama || ''
+                });
+                if (!rxMetadata.hekimSecimi || rxMetadata.hekimSecimi === 'auto') {
+                    rxToastMessage = '💊 "' + p.urunAdi + '" ilacı eklendi (Hekim: Prof. Dr. Arda Lembet).';
+                }
             } else {
                 const parsed = parseSupplementUsage(p);
                 prescriptionList.push({
                     id: p.id,
                     productId: p.id,
                     isIV: false,
+                    isMedication: false,
                     urunAdi: p.urunAdi,
                     marka: p.marka || 'LaraHealth',
                     doz: parsed.doz,
@@ -2143,14 +2257,31 @@ function renderRxDrawerBody() {
         : '';
 
     const ivItems = prescriptionList.filter(isIVProduct);
-    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
+    const medItems = prescriptionList.filter(isMedicationProduct);
+    const suppItems = prescriptionList.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
+
+    const hasIV = ivItems.length > 0;
+    const hasMed = medItems.length > 0;
+    const hasSupp = suppItems.length > 0;
 
     let drawerTitle = 'Takviye Kullanım Protokolü';
-    if (ivItems.length > 0 && oralItems.length > 0) {
+    if (hasIV && hasMed && hasSupp) {
+        drawerTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
+    } else if (hasIV && hasMed) {
+        drawerTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
+    } else if (hasIV && hasSupp) {
         drawerTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    } else if (ivItems.length > 0) {
+    } else if (hasMed && hasSupp) {
+        drawerTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
+    } else if (hasMed) {
+        drawerTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
+    } else if (hasSupp) {
+        drawerTitle = 'Takviye Kullanım Protokolü';
+    } else if (hasIV) {
         drawerTitle = 'LONGEVITY IV PROTOKOLÜ';
     }
+
+    const effectiveMode = getEffectiveHekimMode();
 
     let headerDocHtml = `
         <div class="plan-header-box" style="flex-direction: column; gap: 14px;">
@@ -2158,6 +2289,32 @@ function renderRxDrawerBody() {
                 ${logoImgHtml}
                 <div class="plan-main-title" style="font-family: 'Poppins', sans-serif; font-size: 14pt; font-weight: 700; color: #111827; text-align: center;">${escapeXml(drawerTitle)}</div>
             </div>
+            
+            <!-- HEKİM / DİYETİSYEN İMZA SEÇİCİ -->
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 6px 12px; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 11.5px; font-weight: 700; color: #475569; display: inline-flex; align-items: center; gap: 5px;">
+                    <span>✍️</span> <span>İmza Yetkilisi:</span>
+                </span>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                    <button type="button" onclick="setHekimSecimi('dietitian')" 
+                            style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1.5px solid ${effectiveMode === 'dietitian' ? '#0D5C3A' : '#CBD5E1'}; background: ${effectiveMode === 'dietitian' ? '#E8F5E9' : '#FFFFFF'}; color: ${effectiveMode === 'dietitian' ? '#0D5C3A' : '#475569'};">
+                        🌿 Dyt. Betül Çetin
+                    </button>
+                    <button type="button" onclick="setHekimSecimi('doctor')" 
+                            style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1.5px solid ${effectiveMode === 'doctor' ? '#1E3A8A' : '#CBD5E1'}; background: ${effectiveMode === 'doctor' ? '#EFF6FF' : '#FFFFFF'}; color: ${effectiveMode === 'doctor' ? '#1E3A8A' : '#475569'};">
+                        🩺 Prof. Dr. Arda Lembet
+                    </button>
+                    <button type="button" onclick="setHekimSecimi('dual')" 
+                            style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1.5px solid ${effectiveMode === 'dual' ? '#869FA8' : '#CBD5E1'}; background: ${effectiveMode === 'dual' ? '#F0F4F6' : '#FFFFFF'}; color: ${effectiveMode === 'dual' ? '#111827' : '#475569'};">
+                        👥 Ortak İmza (Her İkisi)
+                    </button>
+                    ${rxMetadata.hekimSecimi && rxMetadata.hekimSecimi !== 'auto' ? `
+                    <button type="button" onclick="setHekimSecimi('auto')" title="İçeriğe göre otomatik seçime dön" style="background: none; border: none; color: #64748B; font-size: 11px; cursor: pointer; text-decoration: underline;">
+                        (Otomatik)
+                    </button>` : ''}
+                </div>
+            </div>
+
             <div class="plan-meta-grid" style="width: 100%; justify-content: space-between;">
                 <div class="plan-meta-col" style="min-width: 170px;">
                     <span class="plan-meta-lbl">DANIŞAN</span>
@@ -2183,14 +2340,19 @@ function renderRxDrawerBody() {
         container.innerHTML = headerDocHtml + `
             <div style="text-align: center; padding: 40px 20px; background: #FFFFFF; border: 1.5px dashed #CBD5E1; border-radius: 12px; margin-bottom: 20px;">
                 <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.7;">📋</div>
-                <h4 style="color: #111827; font-size: 16px; font-weight: 700; margin-bottom: 6px;">Takviye Protokolü Henüz Boş</h4>
-                <p style="font-size: 13px; color: #64748B;">Katalogdan "+ Ekle" butonuna basabilir veya aşağıdaki hazır klinik protokollerden birini tek tıkla yükleyebilirsiniz.</p>
+                <h4 style="color: #111827; font-size: 16px; font-weight: 700; margin-bottom: 6px;">Klinik Protokolü Henüz Boş</h4>
+                <p style="font-size: 13px; color: #64748B;">Katalogdan takviye/ilaç ekleyebilir veya aşağıdaki hazır klinik protokollerden birini yükleyebilirsiniz.</p>
+                <div style="margin-top: 14px;">
+                    <button type="button" class="btn-add-custom-rx" onclick="addCustomRxItem()" style="background: #F0FDF4; border: 1.5px solid #86EFAC; color: #166534; padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>➕</span> <span>Serbest İlaç / Takviye Ekle</span>
+                    </button>
+                </div>
             </div>
         ` + renderReadyProtocolsHtml();
         return;
     }
 
-    // 1. IV PROTOKOLÜ BÖLÜMÜ (Sadece IV Ürünleri Varsa Görünür)
+    // 1. IV PROTOKOLÜ BÖLÜMÜ
     let ivSectionHtml = '';
     if (ivItems.length > 0) {
         let ivRowsHtml = '';
@@ -2265,17 +2427,97 @@ function renderRxDrawerBody() {
         `;
     }
 
-    // 2. TAKVİYE LİSTESİ BÖLÜMÜ (Oral Takviyeler Varsa Görünür)
-    let oralSectionHtml = '';
-    if (oralItems.length > 0) {
-        let tableRowsHtml = '';
-        let oralCounter = 0;
+    // 2. MEDİKAL İLAÇ TEDAVİSİ BÖLÜMÜ
+    let medSectionHtml = '';
+    if (medItems.length > 0) {
+        let medRowsHtml = '';
+        let medCounter = 0;
         prescriptionList.forEach((item, realIdx) => {
-            if (isIVProduct(item)) return;
-            oralCounter++;
-            tableRowsHtml += `
+            if (!isMedicationProduct(item)) return;
+            medCounter++;
+            medRowsHtml += `
                 <tr>
-                    <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center;">${oralCounter}</td>
+                    <td style="width: 4%; font-weight: 700; color: #1E3A8A; text-align: center;">${medCounter}</td>
+                    <td style="width: 32%;">
+                        <div style="font-weight: 700; color: #111827; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
+                            <span>${escapeXml(item.urunAdi)}</span>
+                            <span style="font-size: 10px; font-weight: 800; background: #EFF6FF; color: #1E3A8A; border: 1px solid #BFDBFE; padding: 1px 6px; border-radius: 4px;">İLAÇ</span>
+                        </div>
+                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.etkenMadde || item.marka || 'Farmasötik İlaç')}</div>
+                        <input type="text" class="plan-titration-input" placeholder="+ Tıbbi kullanım talimatı (örn: Sabah aç, akşam yemekle...)" 
+                               value="${item.not || ''}" 
+                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel medikal talimat">
+                    </td>
+                    <td style="width: 13%;">
+                        <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 tablet'}" 
+                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz">
+                    </td>
+                    <td style="width: 13%;">
+                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
+                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık">
+                    </td>
+                    <td style="width: 12%;">
+                        <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
+                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman">
+                    </td>
+                    <td style="width: 14%;">
+                        <input type="text" class="plan-input-inline" value="${item.kullanim || 'Tok karnına'}" 
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım">
+                    </td>
+                    <td style="width: 8%;">
+                        <input type="text" class="plan-input-inline" value="${item.sure || 'Sürekli'}" 
+                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre">
+                    </td>
+                    <td style="width: 8%; text-align: center;">
+                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} ilacını reçeteden çıkar">
+                            <span>🗑️</span>
+                            <span>Çıkar</span>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        medSectionHtml = `
+            <div class="plan-table-wrap" style="margin-bottom: 22px; border-left: 4px solid #1E3A8A;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
+                        <span>💊</span> <span>Medikal İlaç Tedavisi</span>
+                        <span style="font-size: 11.5px; font-weight: 700; background: #EFF6FF; color: #1E3A8A; padding: 2px 10px; border-radius: 12px; border: 1px solid #BFDBFE;">${medItems.length} İlaç (Prof. Dr. Arda Lembet)</span>
+                    </div>
+                </div>
+                <table class="plan-rx-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 3%; text-align: center;">#</th>
+                            <th style="width: 30%;">İLAÇ / ETKEN MADDE</th>
+                            <th style="width: 13%;">DOZ</th>
+                            <th style="width: 13%;">SIKLIK</th>
+                            <th style="width: 12%;">ZAMAN</th>
+                            <th style="width: 13%;">KULLANIM</th>
+                            <th style="width: 8%;">SÜRE</th>
+                            <th style="width: 8%; text-align: center;">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${medRowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 3. DESTEKLEYİCİ TAKVİYE LİSTESİ BÖLÜMÜ
+    let suppSectionHtml = '';
+    if (suppItems.length > 0) {
+        let suppRowsHtml = '';
+        let suppCounter = 0;
+        prescriptionList.forEach((item, realIdx) => {
+            if (isIVProduct(item) || isMedicationProduct(item)) return;
+            suppCounter++;
+            suppRowsHtml += `
+                <tr>
+                    <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center;">${suppCounter}</td>
                     <td style="width: 32%;">
                         <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${escapeXml(item.urunAdi)}</div>
                         <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.marka)}</div>
@@ -2313,17 +2555,13 @@ function renderRxDrawerBody() {
             `;
         });
 
-        oralSectionHtml = `
+        suppSectionHtml = `
             <div class="plan-table-wrap">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                     <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
-                        <span>📋</span> <span>Takviye Listesi</span>
-                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${oralItems.length} Ürün</span>
+                        <span>🌿</span> <span>Destekleyici Takviye Listesi</span>
+                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${suppItems.length} Ürün (Dyt. Betül Çetin)</span>
                     </div>
-                    <button type="button" class="btn-clear-rx-all" onclick="clearAllPrescriptionItems()" title="Reçetedeki tüm takviyeleri listeden çıkar">
-                        <span>🗑️</span>
-                        <span>Reçeteyi Sıfırla</span>
-                    </button>
                 </div>
                 <table class="plan-rx-table">
                     <thead>
@@ -2339,23 +2577,58 @@ function renderRxDrawerBody() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${tableRowsHtml}
+                        ${suppRowsHtml}
                     </tbody>
                 </table>
             </div>
         `;
     }
 
-    // 3. KULLANIM ÇİZELGESİ (Sadece Oral Takviyeler Varsa Görünür)
+    // 4. BİRLEŞİK KULLANIM ÇİZELGESİ (İlaç veya Takviye Varsa Görünür)
     let scheduleSectionHtml = '';
-    if (oralItems.length > 0) {
+    if (medItems.length > 0 || suppItems.length > 0) {
         scheduleSectionHtml = `
             <div class="schedule-section" id="scheduleSectionBox">
                 <div class="schedule-title">
                     <span>🗓️</span>
-                    <span>Kullanım Çizelgesi</span>
+                    <span>Günlük Kullanım Çizelgesi (İlaç & Takviye)</span>
                 </div>
                 ${buildDailyScheduleHtml(prescriptionList)}
+            </div>
+        `;
+    }
+
+    // 5. İMZA ALANI HTML (Tekli veya Çiftli)
+    let signatureHtml = '';
+    if (effectiveMode === 'dual') {
+        signatureHtml = `
+            <div style="display: flex; gap: 30px; justify-content: flex-end; align-items: flex-end; flex-wrap: wrap;">
+                <div class="plan-signature-area" style="text-align: center; min-width: 210px;">
+                    <div class="plan-sig-line"></div>
+                    <div class="plan-sig-name">Prof. Dr. Arda Lembet</div>
+                    <div class="plan-sig-title">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+                </div>
+                <div class="plan-signature-area" style="text-align: center; min-width: 210px;">
+                    <div class="plan-sig-line"></div>
+                    <div class="plan-sig-name">Diyetisyen Betül Çetin</div>
+                    <div class="plan-sig-title">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                </div>
+            </div>
+        `;
+    } else if (effectiveMode === 'doctor') {
+        signatureHtml = `
+            <div class="plan-signature-area" style="text-align: center; min-width: 240px;">
+                <div class="plan-sig-line"></div>
+                <div class="plan-sig-name">Prof. Dr. Arda Lembet</div>
+                <div class="plan-sig-title">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+            </div>
+        `;
+    } else {
+        signatureHtml = `
+            <div class="plan-signature-area" style="text-align: center; min-width: 240px;">
+                <div class="plan-sig-line"></div>
+                <div class="plan-sig-name">Diyetisyen Betül Çetin</div>
+                <div class="plan-sig-title">Longevity ve Bütüncül Sağlık Danışmanı</div>
             </div>
         `;
     }
@@ -2367,23 +2640,31 @@ function renderRxDrawerBody() {
             <span style="cursor:pointer; margin-left: 12px; font-weight: bold; font-size: 14px;" onclick="this.parentElement.style.display='none'">✕</span>
         </div>` : ''}
 
+        <!-- HIZLI AKSİYON BUTONLARI -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <button type="button" class="btn-add-custom-rx" onclick="addCustomRxItem()" style="background: #F0FDF4; border: 1.5px solid #86EFAC; color: #166534; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <span>➕</span> <span>Serbest İlaç / Takviye Ekle</span>
+            </button>
+            <button type="button" class="btn-clear-rx-all" onclick="clearAllPrescriptionItems()" title="Reçetedeki tüm ürünleri temizle">
+                <span>🗑️</span>
+                <span>Reçeteyi Sıfırla</span>
+            </button>
+        </div>
+
         ${ivSectionHtml}
-        ${oralSectionHtml}
+        ${medSectionHtml}
+        ${suppSectionHtml}
         ${scheduleSectionHtml}
 
         <!-- Alt Bilgi & İmza Alanı -->
         <div class="plan-footer-box">
             <div class="plan-disclaimer">
-                Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+                Bu protokol danışanın klinik ve biyokimyasal değerlendirmesine özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
                 <div style="margin-top: 6px; color: #9CA3AF; font-size: 10px;">
-                    Kadıköy, İstanbul • 0216 912 07 02
+                    Bağdat Caddesi No: 225 • Kadıköy, İstanbul • 0216 912 07 02
                 </div>
             </div>
-            <div class="plan-signature-area">
-                <div class="plan-sig-line"></div>
-                <div class="plan-sig-name">Diyetisyen Betül Çetin</div>
-                <div class="plan-sig-title">Longevity ve Bütüncül Sağlık Danışmanı</div>
-            </div>
+            ${signatureHtml}
         </div>
     `;
 
@@ -2408,15 +2689,22 @@ function buildDailyScheduleHtml(items) {
     };
 
     items.forEach((item) => {
-        if (isIVProduct(item)) return; // Skip IV items in daily schedule cards!
+        if (isIVProduct(item)) return; // Skip IV infusions in daily oral schedule!
         const realIdx = prescriptionList.indexOf(item);
         const slot = getItemScheduleSlot(item);
+        const isMed = isMedicationProduct(item);
         schedule[slot].push({
             idx: realIdx >= 0 ? realIdx : 0,
             item: item,
+            isMed: isMed,
             name: item.urunAdi,
-            detail: (item.doz || '1 x 1 kapsül') + ' · ' + (item.kullanim || 'yemekle')
+            detail: (item.doz || (isMed ? '1 tablet' : '1 kapsül')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle'))
         });
+    });
+
+    // Sort so medications appear first in each slot box
+    Object.keys(schedule).forEach(k => {
+        schedule[k].sort((a, b) => (b.isMed ? 1 : 0) - (a.isMed ? 1 : 0));
     });
 
     function renderColumn(colKey) {
@@ -2634,17 +2922,33 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
     const safeDanisan = escapeDocXml(danisan || '................................................');
     const safeTarih = escapeDocXml(tarih || '');
     const safeKontrol = escapeDocXml(kontrol || '-');
-    const safeDiyetisyen = escapeDocXml(diyetisyen || 'Diyetisyen Betül Çetin');
 
     const ivItems = items.filter(isIVProduct);
-    const oralItems = items.filter(it => !isIVProduct(it));
+    const medItems = items.filter(isMedicationProduct);
+    const suppItems = items.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
+
+    const hasIV = ivItems.length > 0;
+    const hasMed = medItems.length > 0;
+    const hasSupp = suppItems.length > 0;
 
     let docTitle = 'Takviye Kullanım Protokolü';
-    if (ivItems.length > 0 && oralItems.length > 0) {
+    if (hasIV && hasMed && hasSupp) {
+        docTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
+    } else if (hasIV && hasMed) {
+        docTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
+    } else if (hasIV && hasSupp) {
         docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    } else if (ivItems.length > 0) {
+    } else if (hasMed && hasSupp) {
+        docTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
+    } else if (hasMed) {
+        docTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
+    } else if (hasSupp) {
+        docTitle = 'Takviye Kullanım Protokolü';
+    } else if (hasIV) {
         docTitle = 'LONGEVITY IV PROTOKOLÜ';
     }
+
+    const effectiveMode = getEffectiveHekimMode();
 
     let xml = `
     <w:p>
@@ -2698,14 +3002,14 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         </w:tc>
       </w:tr>
     </w:tbl>
-    <w:p><w:pPr><w:spacing w:after="160"/></w:pPr></w:p>
+    <w:p><w:pPr><w:spacing w:after="140"/></w:pPr></w:p>
     `;
 
     // 1. IV PROTOKOLÜ (SADECE IV ÜRÜNÜ VARSA ÇIKAR!)
-    if (ivItems.length > 0) {
+    if (hasIV) {
         xml += `
         <w:p>
-          <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
+          <w:pPr><w:spacing w:before="120" w:after="80"/></w:pPr>
           <w:r>
             <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr>
             <w:t>IV PROTOKOLÜ</w:t>
@@ -2745,7 +3049,6 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tr>
         `;
 
-        // Group IV items by week
         const weeksMap = new Map();
         ivItems.forEach(item => {
             let w = (item.hafta || item.zaman || '1. Hafta').trim();
@@ -2809,30 +3112,107 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 
         xml += `</w:tbl>`;
 
-        // Disclaimer below IV table
         xml += `
-        <w:p><w:pPr><w:spacing w:before="180" w:after="100"/></w:pPr>
+        <w:p><w:pPr><w:spacing w:before="140" w:after="100"/></w:pPr>
           <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr>
           <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
         </w:p>
         `;
 
-        // If oral supplements exist, add a Page Break for Page 2 (Takviye Listesi)
-        if (oralItems.length > 0) {
-            xml += `
-            <w:p><w:r><w:br w:type="page"/></w:r></w:p>
-            `;
+        if (hasMed || hasSupp) {
+            xml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
         }
     }
 
-    // 2. TAKVİYE LİSTESİ (SADECE ORAL TAKVİYELER VARSA ÇIKAR!)
-    if (oralItems.length > 0) {
+    // 2. MEDİKAL İLAÇ TEDAVİSİ TABLOSU (SADECE İLAÇ VARSA ÇIKAR!)
+    if (hasMed) {
         xml += `
         <w:p>
-          <w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr>
+          <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
           <w:r>
             <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr>
-            <w:t>Takviye Listesi</w:t>
+            <w:t>Medikal İlaç Tedavisi</w:t>
+          </w:r>
+        </w:p>
+
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders>
+              <w:top w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:bottom w:val="single" w:sz="12" w:space="0" w:color="869FA8"/>
+              <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E5E7EB"/>
+              <w:left w:val="none"/><w:right w:val="none"/><w:insideV w:val="none"/>
+            </w:tblBorders>
+            <w:tblCellMar>
+              <w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>
+              <w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>
+            </w:tblCellMar>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="368"/><w:gridCol w:w="3120"/><w:gridCol w:w="1100"/>
+            <w:gridCol w:w="1280"/><w:gridCol w:w="1100"/><w:gridCol w:w="1280"/><w:gridCol w:w="936"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:trPr><w:tblHeader/></w:trPr>
+            <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>#</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>İLAÇ / ETKEN MADDE</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>DOZ</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SIKLIK</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>ZAMAN</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>KULLANIM</w:t></w:r></w:p></w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="111827"/></w:rPr><w:t>SÜRE</w:t></w:r></w:p></w:tc>
+          </w:tr>
+        `;
+
+        medItems.forEach((it, idx) => {
+            const num = idx + 1;
+            const name = escapeDocXml(it.urunAdi || '');
+            const brand = escapeDocXml(it.etkenMadde || it.marka || '');
+            const dose = escapeDocXml(it.doz || '-');
+            const freq = escapeDocXml(it.siklik || '-');
+            const time = escapeDocXml(it.zaman || '-');
+            const usage = escapeDocXml(it.kullanim || '-');
+            const duration = escapeDocXml(it.sure || '-');
+            
+            let noteXml = '';
+            if (it.not) {
+                noteXml = `
+                <w:p><w:pPr><w:spacing w:before="30" w:after="0"/></w:pPr>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:i/><w:b/><w:sz w:val="15"/><w:color w:val="1E3A8A"/></w:rPr>
+                  <w:t>${escapeDocXml(it.not)}</w:t></w:r>
+                </w:p>
+                `;
+            }
+
+            xml += `
+            <w:tr>
+              <w:tc><w:tcPr><w:tcW w:w="368" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${num}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/></w:tcPr>
+                <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr><w:t>${name}</w:t></w:r></w:p>
+                <w:p><w:pPr><w:spacing w:before="20" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${brand}</w:t></w:r></w:p>
+                ${noteXml}
+              </w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${dose}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${freq}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1100" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${time}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="1280" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${usage}</w:t></w:r></w:p></w:tc>
+              <w:tc><w:tcPr><w:tcW w:w="936" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr><w:t>${duration}</w:t></w:r></w:p></w:tc>
+            </w:tr>
+            `;
+        });
+
+        xml += `</w:tbl>`;
+    }
+
+    // 3. DESTEKLEYİCİ TAKVİYE LİSTESİ TABLOSU (SADECE TAKVİYE VARSA ÇIKAR!)
+    if (hasSupp) {
+        xml += `
+        <w:p>
+          <w:pPr><w:spacing w:before="140" w:after="80"/></w:pPr>
+          <w:r>
+            <w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr>
+            <w:t>Destekleyici Takviye Listesi</w:t>
           </w:r>
         </w:p>
 
@@ -2866,7 +3246,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tr>
         `;
 
-        oralItems.forEach((it, idx) => {
+        suppItems.forEach((it, idx) => {
             const num = idx + 1;
             const name = escapeDocXml(it.urunAdi || '');
             const brand = escapeDocXml(it.marka || '');
@@ -2904,108 +3284,46 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         });
 
         xml += `</w:tbl>`;
-
-        // Only show daily schedule cards if oral supplements exist and IV is NOT present
-        if (ivItems.length === 0) {
-            xml += `
-            <w:p><w:pPr><w:spacing w:before="240" w:after="100"/></w:pPr>
-              <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
-              <w:t>Kullanım Çizelgesi</w:t></w:r>
-            </w:p>
-            `;
-
-            const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
-            oralItems.forEach(item => {
-                const z = (item.zaman || '').toLowerCase();
-                const entry = {
-                    name: item.urunAdi || '',
-                    detail: (item.doz || '1 kap') + ' · ' + (item.kullanim || 'yemekle')
-                };
-                if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-                    schedule.sabah.push(entry);
-                } else if (z.includes('öğle') || z.includes('ogle')) {
-                    schedule.ogle.push(entry);
-                } else if (z.includes('akşam') || z.includes('aksam')) {
-                    schedule.aksam.push(entry);
-                } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-                    schedule.yatmadan.push(entry);
-                } else {
-                    schedule.sabah.push(entry);
-                }
-            });
-
-            xml += `
-            <w:tbl>
-              <w:tblPr>
-                <w:tblW w:w="9184" w:type="dxa"/>
-                <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
-              </w:tblPr>
-              <w:tblGrid>
-                <w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/>
-              </w:tblGrid>
-              <w:tr>
-            `;
-
-            const slots = [
-                ['SABAH', schedule.sabah],
-                ['ÖĞLE', schedule.ogle],
-                ['AKŞAM', schedule.aksam],
-                ['YATMADAN', schedule.yatmadan]
-            ];
-
-            slots.forEach(([slotTitle, slotItems]) => {
-                let itemsXml = '';
-                if (slotItems.length === 0) {
-                    itemsXml = `
-                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="80"/></w:pPr>
-                      <w:r><w:rPr><w:sz w:val="22"/><w:color w:val="9CA3AF"/></w:rPr><w:t>—</w:t></w:r>
-                    </w:p>
-                    `;
-                } else {
-                    slotItems.forEach(it => {
-                        itemsXml += `
-                        <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
-                          <w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>
-                          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
-                        </w:p>
-                        <w:p><w:pPr><w:ind w:left="240"/><w:spacing w:before="0" w:after="40"/></w:pPr>
-                          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
-                        </w:p>
-                        `;
-                    });
-                }
-
-                xml += `
-                <w:tc>
-                  <w:tcPr>
-                    <w:tcW w:w="2296" w:type="dxa"/>
-                    <w:tcBorders>
-                      <w:top w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-                      <w:left w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-                      <w:bottom w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-                      <w:right w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
-                    </w:tcBorders>
-                    <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
-                    <w:tcMar><w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>
-                  </w:tcPr>
-                  <w:p>
-                    <w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="E5E7EB"/></w:pBdr><w:spacing w:after="80"/></w:pPr>
-                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
-                  </w:p>
-                  ${itemsXml}
-                </w:tc>
-                `;
-            });
-
-            xml += `
-              </w:tr>
-            </w:tbl>
-            `;
-        }
     }
 
-    // 3. DISCLAIMER & SIGNATURE
-    if (oralItems.length > 0 || ivItems.length === 0) {
+    // 4. BİRLEŞİK GÜNLÜK KULLANIM ÇİZELGESİ (İlaç veya Takviye Varsa Çıkar!)
+    if (hasMed || hasSupp) {
+        xml += `
+        <w:p><w:pPr><w:spacing w:before="220" w:after="90"/></w:pPr>
+          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
+          <w:t>Kullanım Çizelgesi</w:t></w:r>
+        </w:p>
+        `;
+
+        const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
+        const oralList = [...medItems, ...suppItems];
+
+        oralList.forEach(item => {
+            const z = (item.zaman || '').toLowerCase();
+            const isMed = isMedicationProduct(item);
+            const entry = {
+                name: item.urunAdi || '',
+                isMed: isMed,
+                detail: (item.doz || (isMed ? '1 tab' : '1 kap')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle'))
+            };
+            if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
+                schedule.sabah.push(entry);
+            } else if (z.includes('öğle') || z.includes('ogle')) {
+                schedule.ogle.push(entry);
+            } else if (z.includes('akşam') || z.includes('aksam')) {
+                schedule.aksam.push(entry);
+            } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
+                schedule.yatmadan.push(entry);
+            } else {
+                schedule.sabah.push(entry);
+            }
+        });
+
+        // Sort so medications come first in each box
+        Object.keys(schedule).forEach(k => {
+            schedule[k].sort((a, b) => (b.isMed ? 1 : 0) - (a.isMed ? 1 : 0));
+        });
+
         xml += `
         <w:tbl>
           <w:tblPr>
@@ -3013,20 +3331,103 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
             <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
           </w:tblPr>
           <w:tblGrid>
-            <w:gridCol w:w="5510"/><w:gridCol w:w="3674"/>
+            <w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/><w:gridCol w:w="2296"/>
+          </w:tblGrid>
+          <w:tr>
+        `;
+
+        const slots = [
+            ['SABAH', schedule.sabah],
+            ['ÖĞLE', schedule.ogle],
+            ['AKŞAM', schedule.aksam],
+            ['YATMADAN', schedule.yatmadan]
+        ];
+
+        slots.forEach(([slotTitle, slotItems]) => {
+            let itemsXml = '';
+            if (slotItems.length === 0) {
+                itemsXml = `
+                <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="80"/></w:pPr>
+                  <w:r><w:rPr><w:sz w:val="22"/><w:color w:val="9CA3AF"/></w:rPr><w:t>—</w:t></w:r>
+                </w:p>
+                `;
+            } else {
+                slotItems.forEach(it => {
+                    const tagXml = it.isMed 
+                        ? `<w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="1E3A8A"/></w:rPr><w:t>[İLAÇ] </w:t></w:r>`
+                        : `<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>`;
+
+                    itemsXml += `
+                    <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
+                      ${tagXml}
+                      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="17"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(it.name)}</w:t></w:r>
+                    </w:p>
+                    <w:p><w:pPr><w:ind w:left="220"/><w:spacing w:before="0" w:after="40"/></w:pPr>
+                      <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="4B5563"/></w:rPr><w:t>${escapeDocXml(it.detail)}</w:t></w:r>
+                    </w:p>
+                    `;
+                });
+            }
+
+            xml += `
+            <w:tc>
+              <w:tcPr>
+                <w:tcW w:w="2296" w:type="dxa"/>
+                <w:tcBorders>
+                  <w:top w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                  <w:left w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                  <w:bottom w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                  <w:right w:val="single" w:sz="6" w:space="0" w:color="D1D5DB"/>
+                </w:tcBorders>
+                <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
+                <w:tcMar><w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>
+              </w:tcPr>
+              <w:p>
+                <w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="2" w:color="E5E7EB"/></w:pBdr><w:spacing w:after="80"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="16"/><w:color w:val="869FA8"/></w:rPr><w:t>${slotTitle}</w:t></w:r>
+              </w:p>
+              ${itemsXml}
+            </w:tc>
+            `;
+        });
+
+        xml += `
+          </w:tr>
+        </w:tbl>
+        `;
+    }
+
+    // 5. YASAL UYARI VE DİNAMİK İMZA ALANI (TEKLİ VEYA ÇİFTLİ İMZA)
+    if (effectiveMode === 'dual') {
+        // Çift İmza: Yan yana Prof. Dr. Arda Lembet & Diyetisyen Betül Çetin
+        xml += `
+        <w:p><w:pPr><w:spacing w:before="260" w:after="80"/></w:pPr>
+          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+          <w:t>Bu protokol danışanın/hastanın klinik ve biyokimyasal değerlendirmesine özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
+        </w:p>
+
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="4592"/><w:gridCol w:w="4592"/>
           </w:tblGrid>
           <w:tr>
             <w:tc>
-              <w:tcPr><w:tcW w:w="5510" w:type="dxa"/></w:tcPr>
-              <w:p><w:pPr><w:spacing w:before="300" w:after="40"/></w:pPr>
-                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
-                <w:t>Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.</w:t></w:r>
+              <w:tcPr><w:tcW w:w="4592" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="220" w:after="30"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>Prof. Dr. Arda Lembet</w:t></w:r>
+              </w:p>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</w:t></w:r>
               </w:p>
             </w:tc>
             <w:tc>
-              <w:tcPr><w:tcW w:w="3674" w:type="dxa"/></w:tcPr>
-              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
-                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
+              <w:tcPr><w:tcW w:w="4592" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="220" w:after="30"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>Diyetisyen Betül Çetin</w:t></w:r>
               </w:p>
               <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
                 <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
@@ -3035,15 +3436,67 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tr>
         </w:tbl>
         `;
-    } else {
-        // Only IV was present: put signature directly below IV table
+    } else if (effectiveMode === 'doctor') {
+        // Tek İmza: Prof. Dr. Arda Lembet
         xml += `
-        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="300" w:after="40"/></w:pPr>
-          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>${safeDiyetisyen}</w:t></w:r>
-        </w:p>
-        <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
-          <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
-        </w:p>
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="5184"/><w:gridCol w:w="4000"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="5184" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:before="260" w:after="40"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+                <w:t>Bu protokol danışanın klinik değerlendirmesine özel hazırlanmıştır. İlaç doz ve sürelerini hekiminize danışmadan değiştirmeyiniz.</w:t></w:r>
+              </w:p>
+            </w:tc>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="4000" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="260" w:after="30"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>Prof. Dr. Arda Lembet</w:t></w:r>
+              </w:p>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</w:t></w:r>
+              </w:p>
+            </w:tc>
+          </w:tr>
+        </w:tbl>
+        `;
+    } else {
+        // Tek İmza: Diyetisyen Betül Çetin
+        xml += `
+        <w:tbl>
+          <w:tblPr>
+            <w:tblW w:w="9184" w:type="dxa"/>
+            <w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>
+          </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="5184"/><w:gridCol w:w="4000"/>
+          </w:tblGrid>
+          <w:tr>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="5184" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:spacing w:before="260" w:after="40"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+                <w:t>Bu protokol danışanın klinik değerlendirmesine özel hazırlanmıştır. Takviye doz ve kullanım sürelerini hekim ve diyetisyeninize danışmadan değiştirmeyiniz.</w:t></w:r>
+              </w:p>
+            </w:tc>
+            <w:tc>
+              <w:tcPr><w:tcW w:w="4000" w:type="dxa"/></w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="260" w:after="30"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="26"/><w:color w:val="111827"/></w:rPr><w:t>Diyetisyen Betül Çetin</w:t></w:r>
+              </w:p>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="869FA8"/></w:rPr><w:t>Longevity ve Bütüncül Sağlık Danışmanı</w:t></w:r>
+              </w:p>
+            </w:tc>
+          </w:tr>
+        </w:tbl>
         `;
     }
 
@@ -3053,14 +3506,13 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 
 async function downloadPrescriptionWord() {
     if (prescriptionList.length === 0) {
-        alert('Lütfen önce protokole en az bir takviye ekleyiniz.');
+        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
         return;
     }
 
     const danisan = (rxMetadata.kime || '').trim();
     const tarih = rxMetadata.tarih || new Date().toLocaleDateString('tr-TR');
     const kontrol = rxMetadata.kontrol || calculateDefaultControlDate();
-    const diyetisyen = rxMetadata.kimden || 'Diyetisyen Betül Çetin';
     const danisanSlug = danisan ? danisan.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_]/g, '_') : 'Danisan';
     const tarihSlug = (tarih || '').replace(/\./g, '_');
 
@@ -3073,7 +3525,7 @@ async function downloadPrescriptionWord() {
             const sectIdx = origDocXml.indexOf('<w:sectPr');
             if (sectIdx !== -1) {
                 const bodyStart = origDocXml.indexOf('<w:body>') + 8;
-                const fullBodyXml = buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, prescriptionList);
+                const fullBodyXml = buildPrescriptionOpenXml(danisan, tarih, kontrol, '', prescriptionList);
                 const newDocXml = origDocXml.substring(0, bodyStart) + fullBodyXml + origDocXml.substring(sectIdx);
                 zip.file('word/document.xml', newDocXml);
 
@@ -3082,7 +3534,7 @@ async function downloadPrescriptionWord() {
                     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 });
 
-                const filename = `LaraHealth_Takviye_Protokolu_${danisanSlug}_${tarihSlug}.docx`;
+                const filename = `LaraHealth_Klinik_Protokolu_${danisanSlug}_${tarihSlug}.docx`;
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = filename;
@@ -3099,17 +3551,26 @@ async function downloadPrescriptionWord() {
 
     // 2. Fallback Mode: HTML-based .doc format
     const ivItems = prescriptionList.filter(isIVProduct);
-    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
+    const medItems = prescriptionList.filter(isMedicationProduct);
+    const suppItems = prescriptionList.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
+
+    const hasIV = ivItems.length > 0;
+    const hasMed = medItems.length > 0;
+    const hasSupp = suppItems.length > 0;
 
     let docTitle = 'Takviye Kullanım Protokolü';
-    if (ivItems.length > 0 && oralItems.length > 0) {
-        docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    } else if (ivItems.length > 0) {
-        docTitle = 'LONGEVITY IV PROTOKOLÜ';
-    }
+    if (hasIV && hasMed && hasSupp) docTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
+    else if (hasIV && hasMed) docTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
+    else if (hasIV && hasSupp) docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    else if (hasMed && hasSupp) docTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
+    else if (hasMed) docTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
+    else if (hasSupp) docTitle = 'Takviye Kullanım Protokolü';
+    else if (hasIV) docTitle = 'LONGEVITY IV PROTOKOLÜ';
+
+    const effectiveMode = getEffectiveHekimMode();
 
     let ivTableHtml = '';
-    if (ivItems.length > 0) {
+    if (hasIV) {
         const weeksMap = new Map();
         ivItems.forEach(item => {
             let w = (item.hafta || item.zaman || '1. Hafta').trim();
@@ -3178,15 +3639,69 @@ async function downloadPrescriptionWord() {
             </p>
         `;
 
-        if (oralItems.length > 0) {
+        if (hasMed || hasSupp) {
             ivTableHtml += `<br clear="all" style="mso-special-character:line-break;page-break-before:always">`;
         }
     }
 
-    let oralTableHtml = '';
-    if (oralItems.length > 0) {
+    let medTableHtml = '';
+    if (hasMed) {
         let rowsHtml = '';
-        oralItems.forEach((item, idx) => {
+        medItems.forEach((item, idx) => {
+            const num = idx + 1;
+            const urunAdi = escapeXml(item.urunAdi || '');
+            const marka = escapeXml(item.etkenMadde || item.marka || 'Medikal İlaç');
+            const titrationNote = item.not 
+                ? `<div style="font-size: 9pt; color: #1E3A8A; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
+                : '';
+            const doz = escapeXml(item.doz || '1 x 1 tablet');
+            const siklik = escapeXml(item.siklik || 'Günde 1 kez');
+            const zaman = escapeXml(item.zaman || 'Sabah');
+            const kullanim = escapeXml(item.kullanim || 'Tok karnına');
+            const sure = escapeXml(item.sure || 'Sürekli');
+
+            rowsHtml += `
+                <tr style="border-bottom: 1pt solid #E5E7EB;">
+                    <td style="padding: 9pt 6pt; font-size: 10pt; color: #1E3A8A; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
+                    <td style="padding: 9pt 8pt; vertical-align: top; width: 34%;">
+                        <div style="font-size: 10.5pt; font-weight: bold; color: #111827; font-family: 'Poppins', Arial, sans-serif;">${urunAdi}</div>
+                        <div style="font-size: 8.5pt; color: #6B7280; margin-top: 1pt;">${marka}</div>
+                        ${titrationNote}
+                    </td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${doz}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${siklik}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${zaman}</td>
+                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${kullanim}</td>
+                    <td style="padding: 9pt 6pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 10%;">${sure}</td>
+                </tr>
+            `;
+        });
+
+        medTableHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Medikal İlaç Tedavisi</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
+                <thead>
+                    <tr>
+                        <th style="width: 4%; text-align: center;">#</th>
+                        <th style="width: 34%;">İLAÇ / ETKEN MADDE</th>
+                        <th style="width: 12%;">DOZ</th>
+                        <th style="width: 14%;">SIKLIK</th>
+                        <th style="width: 12%;">ZAMAN</th>
+                        <th style="width: 14%;">KULLANIM</th>
+                        <th style="width: 10%;">SÜRE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    let suppTableHtml = '';
+    if (hasSupp) {
+        let rowsHtml = '';
+        suppItems.forEach((item, idx) => {
             const num = idx + 1;
             const urunAdi = escapeXml(item.urunAdi || '');
             const marka = escapeXml(item.marka || '');
@@ -3216,8 +3731,8 @@ async function downloadPrescriptionWord() {
             `;
         });
 
-        oralTableHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Takviye Listesi</div>
+        suppTableHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Destekleyici Takviye Listesi</div>
             <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
                 <thead>
                     <tr>
@@ -3238,13 +3753,16 @@ async function downloadPrescriptionWord() {
     }
 
     let scheduleCardsHtml = '';
-    if (oralItems.length > 0 && ivItems.length === 0) {
+    if (hasMed || hasSupp) {
         const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
-        oralItems.forEach(item => {
+        const oralList = [...medItems, ...suppItems];
+        oralList.forEach(item => {
             const z = (item.zaman || '').toLowerCase();
+            const isMed = isMedicationProduct(item);
             const entry = {
                 name: escapeXml(item.urunAdi),
-                detail: escapeXml((item.doz || '1 kapsül') + ' · ' + (item.kullanim || 'yemekle'))
+                isMed: isMed,
+                detail: escapeXml((item.doz || (isMed ? '1 tablet' : '1 kapsül')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle')))
             };
 
             if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
@@ -3266,11 +3784,12 @@ async function downloadPrescriptionWord() {
                 content = '<div style="color: #9CA3AF; font-size: 14pt; padding: 10pt 0; text-align: center;">—</div>';
             } else {
                 items.forEach(it => {
+                    const tag = it.isMed ? '<span style="color: #1E3A8A; font-weight: bold; font-size: 8.5pt;">[İLAÇ] </span>' : '<span style="font-size: 10pt; color: #4B5563; margin-right: 3pt;">&#9633; </span>';
                     content += `
                         <div style="margin-bottom: 6pt; font-size: 9pt; text-align: left;">
-                            <span style="font-size: 10.5pt; color: #4B5563; margin-right: 3pt;">&#9633;</span>
+                            ${tag}
                             <strong style="color: #111827; font-size: 9.5pt; font-family: 'Poppins', Arial, sans-serif;">${it.name}</strong>
-                            <div style="font-size: 8.5pt; color: #4B5563; margin-left: 12pt; margin-top: 1pt;">${it.detail}</div>
+                            <div style="font-size: 8.5pt; color: #4B5563; margin-left: 10pt; margin-top: 1pt;">${it.detail}</div>
                         </div>
                     `;
                 });
@@ -3307,13 +3826,55 @@ async function downloadPrescriptionWord() {
         `;
     }
 
+    let signatureBlockHtml = '';
+    if (effectiveMode === 'dual') {
+        signatureBlockHtml = `
+            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
+                <tr>
+                    <td style="width: 50%; vertical-align: top; border: none; text-align: center; padding: 0 14pt;">
+                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
+                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
+                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+                    </td>
+                    <td style="width: 50%; vertical-align: top; border: none; text-align: center; padding: 0 14pt;">
+                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
+                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
+                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                    </td>
+                </tr>
+            </table>
+        `;
+    } else if (effectiveMode === 'doctor') {
+        signatureBlockHtml = `
+            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
+                <tr>
+                    <td style="width: 55%; border: none;"></td>
+                    <td style="width: 45%; vertical-align: top; border: none; text-align: center;">
+                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
+                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
+                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+                    </td>
+                </tr>
+            </table>
+        `;
+    } else {
+        signatureBlockHtml = `
+            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
+                <tr>
+                    <td style="width: 55%; border: none;"></td>
+                    <td style="width: 45%; vertical-align: top; border: none; text-align: center;">
+                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
+                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
+                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                    </td>
+                </tr>
+            </table>
+        `;
+    }
+
     const danisanDisplay = danisan 
         ? `<b style="color: #111827; font-size: 11pt;">${escapeXml(danisan)}</b>` 
         : '<span style="color: #9CA3AF;">................................................</span>';
-
-    const logoHtml = (typeof LARA_LOGO_B64 !== 'undefined' && LARA_LOGO_B64)
-        ? `<img src="data:image/png;base64,${LARA_LOGO_B64}" style="height: 42pt; width: auto; object-fit: contain; margin-bottom: 4pt;" alt="LaraHealth">`
-        : '';
 
     const docHtml = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" 
@@ -3383,12 +3944,6 @@ body {
     margin-top: 14pt;
     margin-bottom: 8pt;
 }
-.footer-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: none;
-    margin-top: 24pt;
-}
 </style>
 </head>
 <body>
@@ -3416,37 +3971,23 @@ body {
     </table>
 
     ${ivTableHtml}
-    ${oralTableHtml}
+    ${medTableHtml}
+    ${suppTableHtml}
     ${scheduleCardsHtml}
 
-    <table class="footer-table">
-        <tr>
-            <td style="width: 60%; vertical-align: top; border: none; padding-right: 20pt;">
-                <p style="font-size: 8.5pt; color: #6B7280; line-height: 1.45; margin: 0;">
-                    Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
-                </p>
-                <div style="font-size: 8pt; color: #9CA3AF; margin-top: 6pt;">
-                    Bağdat Caddesi No: 225 • Palmiye İş Merkezi Kat: 3 • Kadıköy, İstanbul • 0216 912 07 02 • www.larahealth.com
-                </div>
-            </td>
-            <td style="width: 40%; vertical-align: top; border: none; text-align: center;">
-                <div style="width: 85%; margin-left: auto; margin-right: 0; text-align: center;">
-                    <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                    <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">
-                        ${escapeXml(diyetisyen)}
-                    </div>
-                    <div style="font-size: 9.5pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">
-                        Longevity ve Bütüncül Sağlık Danışmanı
-                    </div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <p style="font-size: 8.5pt; color: #6B7280; line-height: 1.45; margin: 18pt 0 4pt 0;">
+        Bu protokol danışanın klinik ve biyokimyasal değerlendirmesine özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+    </p>
+    <div style="font-size: 8pt; color: #9CA3AF; margin-bottom: 12pt;">
+        Bağdat Caddesi No: 225 • Palmiye İş Merkezi Kat: 3 • Kadıköy, İstanbul • 0216 912 07 02
+    </div>
+
+    ${signatureBlockHtml}
 </body>
 </html>`;
 
     const blob = new Blob(['\ufeff' + docHtml], { type: 'application/msword;charset=utf-8' });
-    const filename = `LaraHealth_Takviye_Protokolu_${danisanSlug}_${tarihSlug}.doc`;
+    const filename = `LaraHealth_Klinik_Protokolu_${danisanSlug}_${tarihSlug}.doc`;
 
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -3459,27 +4000,35 @@ body {
 
 function printPrescription() {
     if (prescriptionList.length === 0) {
-        alert('Lütfen önce protokole en az bir takviye ekleyiniz.');
+        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
         return;
     }
     const printWindow = window.open('', '_blank');
     const danisan = (rxMetadata.kime || '').trim();
     const tarih = rxMetadata.tarih || new Date().toLocaleDateString('tr-TR');
     const kontrol = rxMetadata.kontrol || calculateDefaultControlDate();
-    const diyetisyen = rxMetadata.kimden || 'Diyetisyen Betül Çetin';
 
     const ivItems = prescriptionList.filter(isIVProduct);
-    const oralItems = prescriptionList.filter(it => !isIVProduct(it));
+    const medItems = prescriptionList.filter(isMedicationProduct);
+    const suppItems = prescriptionList.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
+
+    const hasIV = ivItems.length > 0;
+    const hasMed = medItems.length > 0;
+    const hasSupp = suppItems.length > 0;
 
     let docTitle = 'Takviye Kullanım Protokolü';
-    if (ivItems.length > 0 && oralItems.length > 0) {
-        docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    } else if (ivItems.length > 0) {
-        docTitle = 'LONGEVITY IV PROTOKOLÜ';
-    }
+    if (hasIV && hasMed && hasSupp) docTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
+    else if (hasIV && hasMed) docTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
+    else if (hasIV && hasSupp) docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    else if (hasMed && hasSupp) docTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
+    else if (hasMed) docTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
+    else if (hasSupp) docTitle = 'Takviye Kullanım Protokolü';
+    else if (hasIV) docTitle = 'LONGEVITY IV PROTOKOLÜ';
+
+    const effectiveMode = getEffectiveHekimMode();
 
     let ivSectionHtml = '';
-    if (ivItems.length > 0) {
+    if (hasIV) {
         const weeksMap = new Map();
         ivItems.forEach(item => {
             let w = (item.hafta || item.zaman || '1. Hafta').trim();
@@ -3548,15 +4097,61 @@ function printPrescription() {
             </p>
         `;
 
-        if (oralItems.length > 0) {
+        if (hasMed || hasSupp) {
             ivSectionHtml += `<div style="page-break-after: always;"></div>`;
         }
     }
 
-    let oralSectionHtml = '';
-    if (oralItems.length > 0) {
+    let medSectionHtml = '';
+    if (hasMed) {
         let rowsHtml = '';
-        oralItems.forEach((item, idx) => {
+        medItems.forEach((item, idx) => {
+            const num = idx + 1;
+            const titrationNote = item.not 
+                ? `<div style="font-size: 11px; color: #1E3A8A; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
+                : '';
+            rowsHtml += `
+                <tr style="border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 10px 8px; font-size: 12px; color: #1E3A8A; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
+                    <td style="padding: 10px 8px; vertical-align: top; width: 34%;">
+                        <div style="font-size: 13px; font-weight: bold; color: #111827;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(item.etkenMadde || item.marka || 'Farmasötik İlaç')}</div>
+                        ${titrationNote}
+                    </td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.doz || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.siklik || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.zaman || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.kullanim || '-')}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 10%;">${escapeXml(item.sure || '-')}</td>
+                </tr>
+            `;
+        });
+
+        medSectionHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Medikal İlaç Tedavisi</div>
+            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <thead>
+                    <tr>
+                        <th style="width: 4%; text-align: center;">#</th>
+                        <th style="width: 34%;">İLAÇ / ETKEN MADDE</th>
+                        <th style="width: 12%;">DOZ</th>
+                        <th style="width: 14%;">SIKLIK</th>
+                        <th style="width: 12%;">ZAMAN</th>
+                        <th style="width: 14%;">KULLANIM</th>
+                        <th style="width: 10%;">SÜRE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    let suppSectionHtml = '';
+    if (hasSupp) {
+        let rowsHtml = '';
+        suppItems.forEach((item, idx) => {
             const num = idx + 1;
             const titrationNote = item.not 
                 ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
@@ -3578,8 +4173,8 @@ function printPrescription() {
             `;
         });
 
-        oralSectionHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Takviye Listesi</div>
+        suppSectionHtml = `
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Destekleyici Takviye Listesi</div>
             <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                 <thead>
                     <tr>
@@ -3600,10 +4195,44 @@ function printPrescription() {
     }
 
     let schedulePrintHtml = '';
-    if (oralItems.length > 0 && ivItems.length === 0) {
+    if (hasMed || hasSupp) {
         schedulePrintHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Kullanım Çizelgesi</div>
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Günlük Kullanım Çizelgesi</div>
             ${buildDailyScheduleHtml(prescriptionList)}
+        `;
+    }
+
+    let signaturePrintHtml = '';
+    if (effectiveMode === 'dual') {
+        signaturePrintHtml = `
+            <div style="display: flex; justify-content: space-between; gap: 40px; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                </div>
+            </div>
+        `;
+    } else if (effectiveMode === 'doctor') {
+        signaturePrintHtml = `
+            <div style="display: flex; justify-content: flex-end; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <div style="text-align: center; min-width: 250px;">
+                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
+                </div>
+            </div>
+        `;
+    } else {
+        signaturePrintHtml = `
+            <div style="display: flex; justify-content: flex-end; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <div style="text-align: center; min-width: 250px;">
+                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
+                </div>
+            </div>
         `;
     }
 
@@ -3645,19 +4274,16 @@ function printPrescription() {
             </div>
 
             ${ivSectionHtml}
-            ${oralSectionHtml}
+            ${medSectionHtml}
+            ${suppSectionHtml}
             ${schedulePrintHtml}
 
-            <div style="display: flex; justify-content: space-between; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-                <div style="max-width: 55%; font-size: 11px; color: #6B7280; line-height: 1.5;">
-                    Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
-                    <div style="margin-top: 6px; font-size: 10px; color: #9CA3AF;">Kadıköy, İstanbul • 0216 912 07 02 • www.larahealth.com</div>
-                </div>
-                <div style="text-align: center; min-width: 220px;">
-                    <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">${escapeXml(diyetisyen)}</div>
-                    <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
-                </div>
-            </div>
+            <p style="font-size: 11px; color: #6B7280; line-height: 1.5; margin-top: 28px;">
+                Bu protokol danışanın klinik değerlendirmesine özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
+                <br><span style="font-size: 10px; color: #9CA3AF;">Kadıköy, İstanbul • 0216 912 07 02 • www.larahealth.com</span>
+            </p>
+
+            ${signaturePrintHtml}
         </body>
         </html>
     `);
