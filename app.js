@@ -1685,18 +1685,8 @@ function duplicateRxItem(idx, forceSlot) {
         (r.urunAdi && r.urunAdi.trim().toLowerCase() === productName)
     );
 
-    const existingSlots = existingCopies.map(r => getItemScheduleSlot(r));
-    const candidateSlots = ['aksam', 'sabah', 'ogle', 'yatmadan'];
-
-    let targetSlot = forceSlot;
-    if (!targetSlot) {
-        targetSlot = candidateSlots.find(s => !existingSlots.includes(s));
-        if (!targetSlot) {
-            const currSlot = getItemScheduleSlot(src);
-            targetSlot = (currSlot === 'sabah') ? 'aksam' : 'sabah';
-        }
-    }
-    const newSlotName = SLOT_NAMES_TR[targetSlot] || 'Akşam';
+    // Kopyalama: Kullanıcının istediği gibi varsayılan olarak TAM AYNI vakte (altına) eklenir
+    const newSlotName = forceSlot ? (SLOT_NAMES_TR[forceSlot] || forceSlot) : (src.zaman || 'Sabah');
 
     const newTotalCount = existingCopies.length + 1;
     const newFreqStr = 'Günde ' + newTotalCount + ' kez';
@@ -1726,7 +1716,7 @@ function duplicateRxItem(idx, forceSlot) {
     // Insert directly after the original item for grouped presentation
     prescriptionList.splice(idx + 1, 0, newItem);
 
-    rxToastMessage = '📋 "' + src.urunAdi + '" ' + newSlotName + ' vaktine kopyalandı (' + newFreqStr + ').';
+    rxToastMessage = '📋 "' + src.urunAdi + '" takviyesinden bir kopya daha oluşturuldu (' + newFreqStr + ').';
     updateRxUI();
     renderAll();
     setTimeout(() => {
@@ -2821,9 +2811,14 @@ function buildDailyScheduleHtml(items) {
                         <div class="schedule-drag-grip" title="Sürükleyip başka zamana bırakın">⋮⋮</div>
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
-                                <div style="font-weight: 700; color: #111827; font-size: 12.5px; line-height: 1.3;" title="${escapeHtml(it.urunAdi)}">${escapeHtml(it.urunAdi)}</div>
-                                <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
-                                    <button type="button" class="btn-pill-duplicate" onclick="event.stopPropagation(); duplicateRxItem(${i});" title="Günde 2 kez için kopyala (örn: Akşam)">📋</button>
+                                <div style="font-weight: 700; color: #111827; font-size: 13px; line-height: 1.3;" title="${escapeHtml(it.urunAdi)}">${escapeHtml(it.urunAdi)}</div>
+                                <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                                    <button type="button" class="btn-pill-copy-green" onclick="event.stopPropagation(); duplicateRxItem(${i});" title="Altına bu üründen bir tane daha kopyala / çoğalt">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                    </button>
                                     <button type="button" class="btn-pill-remove" onclick="event.stopPropagation(); removeRxItem(${i});" title="${escapeHtml(it.urunAdi)} takviyesini reçeteden çıkar">✕</button>
                                 </div>
                             </div>
@@ -2837,9 +2832,6 @@ function buildDailyScheduleHtml(items) {
                                     <option value="yatmadan" ${colKey === 'yatmadan' ? 'selected' : ''}>🛌 Yatmadan</option>
                                 </select>
                                 <button type="button" class="btn-slot-step" onclick="moveScheduleItemSlot(${i}, 1)" title="Sonraki zamana taşı" ${colKey === 'yatmadan' ? 'disabled' : ''}>▶</button>
-                                <button type="button" class="btn-pill-copy" onclick="duplicateRxItem(${i})" title="Günde 2 kez kullanım için kopyala (örn: Sabah ➔ Akşam)">
-                                    <span>📋</span> <span>Kopya</span>
-                                </button>
                             </div>
                         </div>
                     </div>
