@@ -1597,7 +1597,7 @@ function addCustomRxItem() {
     renderAll();
     setTimeout(() => {
         rxToastMessage = '';
-        const toastEl = document.getElementById('rxToastBanner');
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
         if (toastEl) toastEl.style.display = 'none';
     }, 3500);
 }
@@ -1671,6 +1671,71 @@ function togglePrescriptionItem(id) {
     renderAll();
 }
 
+function duplicateRxItem(idx, forceSlot) {
+    if (idx < 0 || idx >= prescriptionList.length) return;
+    const src = prescriptionList[idx];
+    if (isIVProduct(src)) {
+        return duplicateIVItem(idx);
+    }
+
+    const prodId = src.productId || src.id;
+    const productName = (src.urunAdi || '').trim().toLowerCase();
+    const existingCopies = prescriptionList.filter(r => 
+        (r.productId && r.productId === prodId) || 
+        (r.urunAdi && r.urunAdi.trim().toLowerCase() === productName)
+    );
+
+    const existingSlots = existingCopies.map(r => getItemScheduleSlot(r));
+    const candidateSlots = ['aksam', 'sabah', 'ogle', 'yatmadan'];
+
+    let targetSlot = forceSlot;
+    if (!targetSlot) {
+        targetSlot = candidateSlots.find(s => !existingSlots.includes(s));
+        if (!targetSlot) {
+            const currSlot = getItemScheduleSlot(src);
+            targetSlot = (currSlot === 'sabah') ? 'aksam' : 'sabah';
+        }
+    }
+    const newSlotName = SLOT_NAMES_TR[targetSlot] || 'Akşam';
+
+    const newTotalCount = existingCopies.length + 1;
+    const newFreqStr = 'Günde ' + newTotalCount + ' kez';
+
+    existingCopies.forEach(copy => {
+        if (!copy.siklik || copy.siklik.includes('Günde')) {
+            copy.siklik = newFreqStr;
+        }
+    });
+
+    const newItem = {
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        productId: prodId,
+        isIV: false,
+        isMedication: !!src.isMedication,
+        urunAdi: src.urunAdi,
+        marka: src.marka || '',
+        etkenMadde: src.etkenMadde || '',
+        doz: src.doz || (src.isMedication ? '1 x 1 tablet' : '1 x 1 kapsül'),
+        siklik: newFreqStr,
+        zaman: newSlotName,
+        kullanim: src.kullanim || (src.isMedication ? 'Tok karnına' : 'Yemekten sonra'),
+        sure: src.sure || (src.isMedication ? 'Sürekli' : '3 ay'),
+        not: src.not || ''
+    };
+
+    // Insert directly after the original item for grouped presentation
+    prescriptionList.splice(idx + 1, 0, newItem);
+
+    rxToastMessage = '📋 "' + src.urunAdi + '" ' + newSlotName + ' vaktine kopyalandı (' + newFreqStr + ').';
+    updateRxUI();
+    renderAll();
+    setTimeout(() => {
+        rxToastMessage = '';
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
+        if (toastEl) toastEl.style.display = 'none';
+    }, 3500);
+}
+
 function duplicateIVItem(idx) {
     if (idx < 0 || idx >= prescriptionList.length) return;
     const src = prescriptionList[idx];
@@ -1696,7 +1761,7 @@ function duplicateIVItem(idx) {
     renderAll();
     setTimeout(() => {
         rxToastMessage = '';
-        const toastEl = document.getElementById('rxToastBanner');
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
         if (toastEl) toastEl.style.display = 'none';
     }, 3500);
 }
@@ -2107,7 +2172,7 @@ function applyClinicalProtocol(protocolId) {
 
     setTimeout(() => {
         rxToastMessage = '';
-        const toastEl = document.getElementById('rxToastBanner');
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
         if (toastEl) toastEl.style.display = 'none';
     }, 4500);
 }
@@ -2154,7 +2219,7 @@ function saveCurrentRxAsProtocol() {
 
     setTimeout(() => {
         rxToastMessage = '';
-        const toastEl = document.getElementById('rxToastBanner');
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
         if (toastEl) toastEl.style.display = 'none';
     }, 4500);
 }
@@ -2469,10 +2534,15 @@ function renderRxDrawerBody() {
                         <input type="text" class="plan-input-inline" value="${item.sure || 'Sürekli'}" 
                                onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre" style="padding: 7px 8px; font-size: 12.5px;">
                     </td>
-                    <td style="width: 8%; text-align: center; vertical-align: middle;">
-                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} ilacını reçeteden çıkar" style="padding: 6px 11px; font-size: 12px; font-weight: 700;">
-                            <span>🗑️</span> <span>Çıkar</span>
-                        </button>
+                    <td style="width: 13%; text-align: center; vertical-align: middle;">
+                        <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                            <button type="button" class="rx-btn-copy" onclick="duplicateRxItem(${realIdx})" title="Günde 2 kez için kopyala / çoğalt">
+                                <span>📋</span> <span>Kopya</span>
+                            </button>
+                            <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} ilacını reçeteden çıkar">
+                                <span>🗑️</span> <span>Çıkar</span>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -2491,13 +2561,13 @@ function renderRxDrawerBody() {
                     <thead>
                         <tr>
                             <th style="width: 4%; text-align: center;">#</th>
-                            <th style="width: 32%;">İLAÇ & ETKEN MADDE</th>
-                            <th style="width: 13%;">DOZ</th>
-                            <th style="width: 13%;">SIKLIK</th>
-                            <th style="width: 12%;">ZAMAN</th>
-                            <th style="width: 14%;">KULLANIM</th>
-                            <th style="width: 8%;">SÜRE</th>
-                            <th style="width: 8%; text-align: center;">İŞLEM</th>
+                            <th style="width: 30%;">İLAÇ & ETKEN MADDE</th>
+                            <th style="width: 12%;">DOZ</th>
+                            <th style="width: 11%;">SIKLIK</th>
+                            <th style="width: 11%;">ZAMAN</th>
+                            <th style="width: 12%;">KULLANIM</th>
+                            <th style="width: 7%;">SÜRE</th>
+                            <th style="width: 13%; text-align: center;">İŞLEM</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2546,10 +2616,15 @@ function renderRxDrawerBody() {
                         <input type="text" class="plan-input-inline" value="${item.sure || '3 ay'}" 
                                onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre (örn: 3 ay)" style="padding: 7px 8px; font-size: 12.5px;">
                     </td>
-                    <td style="width: 8%; text-align: center; vertical-align: middle;">
-                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar" style="padding: 6px 11px; font-size: 12px; font-weight: 700;">
-                            <span>🗑️</span> <span>Çıkar</span>
-                        </button>
+                    <td style="width: 13%; text-align: center; vertical-align: middle;">
+                        <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                            <button type="button" class="rx-btn-copy" onclick="duplicateRxItem(${realIdx})" title="Günde 2 kez için kopyala / çoğalt">
+                                <span>📋</span> <span>Kopya</span>
+                            </button>
+                            <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar">
+                                <span>🗑️</span> <span>Çıkar</span>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -2568,13 +2643,13 @@ function renderRxDrawerBody() {
                     <thead>
                         <tr>
                             <th style="width: 4%; text-align: center;">#</th>
-                            <th style="width: 32%;">TAKVİYE</th>
-                            <th style="width: 13%;">DOZ</th>
-                            <th style="width: 13%;">SIKLIK</th>
-                            <th style="width: 12%;">ZAMAN</th>
-                            <th style="width: 14%;">KULLANIM</th>
-                            <th style="width: 8%;">SÜRE</th>
-                            <th style="width: 8%; text-align: center;">İŞLEM</th>
+                            <th style="width: 30%;">TAKVİYE</th>
+                            <th style="width: 12%;">DOZ</th>
+                            <th style="width: 11%;">SIKLIK</th>
+                            <th style="width: 11%;">ZAMAN</th>
+                            <th style="width: 12%;">KULLANIM</th>
+                            <th style="width: 7%;">SÜRE</th>
+                            <th style="width: 13%; text-align: center;">İŞLEM</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2747,7 +2822,10 @@ function buildDailyScheduleHtml(items) {
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
                                 <div style="font-weight: 700; color: #111827; font-size: 12.5px; line-height: 1.3;" title="${escapeHtml(it.urunAdi)}">${escapeHtml(it.urunAdi)}</div>
-                                <button type="button" class="btn-pill-remove" onclick="event.stopPropagation(); removeRxItem(${i});" title="${escapeHtml(it.urunAdi)} takviyesini reçeteden çıkar">✕</button>
+                                <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                                    <button type="button" class="btn-pill-duplicate" onclick="event.stopPropagation(); duplicateRxItem(${i});" title="Günde 2 kez için kopyala (örn: Akşam)">📋</button>
+                                    <button type="button" class="btn-pill-remove" onclick="event.stopPropagation(); removeRxItem(${i});" title="${escapeHtml(it.urunAdi)} takviyesini reçeteden çıkar">✕</button>
+                                </div>
                             </div>
                             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${escapeHtml(entry.detail)}</div>
                             <div class="schedule-pill-controls" onclick="event.stopPropagation();">
@@ -2759,6 +2837,9 @@ function buildDailyScheduleHtml(items) {
                                     <option value="yatmadan" ${colKey === 'yatmadan' ? 'selected' : ''}>🛌 Yatmadan</option>
                                 </select>
                                 <button type="button" class="btn-slot-step" onclick="moveScheduleItemSlot(${i}, 1)" title="Sonraki zamana taşı" ${colKey === 'yatmadan' ? 'disabled' : ''}>▶</button>
+                                <button type="button" class="btn-pill-copy" onclick="duplicateRxItem(${i})" title="Günde 2 kez kullanım için kopyala (örn: Sabah ➔ Akşam)">
+                                    <span>📋</span> <span>Kopya</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -2886,13 +2967,34 @@ function removeRxItem(idx) {
     if (idx < 0 || idx >= prescriptionList.length) return;
     const item = prescriptionList[idx];
     const name = item ? (item.urunAdi || 'Takviye') : 'Takviye';
+    const prodId = item.productId || item.id;
+    const productName = (item.urunAdi || '').trim().toLowerCase();
+
     prescriptionList.splice(idx, 1);
+
+    const remainingCopies = prescriptionList.filter(r => 
+        (r.productId && r.productId === prodId) || 
+        (r.urunAdi && r.urunAdi.trim().toLowerCase() === productName)
+    );
+    if (remainingCopies.length === 1) {
+        if (remainingCopies[0].siklik && remainingCopies[0].siklik.includes('Günde')) {
+            remainingCopies[0].siklik = 'Günde 1 kez';
+        }
+    } else if (remainingCopies.length > 1) {
+        const remFreq = 'Günde ' + remainingCopies.length + ' kez';
+        remainingCopies.forEach(c => {
+            if (c.siklik && c.siklik.includes('Günde')) {
+                c.siklik = remFreq;
+            }
+        });
+    }
+
     rxToastMessage = '🗑️ "' + name + '" reçete protokolünden çıkarıldı.';
     updateRxUI();
     renderAll();
     setTimeout(() => {
         rxToastMessage = '';
-        const toastEl = document.getElementById('rxToastBanner');
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
         if (toastEl) toastEl.style.display = 'none';
     }, 3500);
 }
@@ -2909,7 +3011,7 @@ function clearAllPrescriptionItems() {
         renderAll();
         setTimeout(() => {
             rxToastMessage = '';
-            const toastEl = document.getElementById('rxToastBanner');
+            const toastEl = typeof document !== 'undefined' ? document.getElementById('rxToastBanner') : null;
             if (toastEl) toastEl.style.display = 'none';
         }, 3500);
     }

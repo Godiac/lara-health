@@ -1245,6 +1245,77 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 6px rgba(225, 29, 72, 0.25);
         }
+
+        .rx-btn-copy {
+            background: #F0FDF4;
+            border: 1px solid #86EFAC;
+            color: #166534;
+            cursor: pointer;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 5px 9px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .rx-btn-copy:hover {
+            background: #166534;
+            border-color: #14532D;
+            color: #FFFFFF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(22, 101, 52, 0.25);
+        }
+        .btn-pill-copy {
+            background: #F0FDF4;
+            border: 1px solid #86EFAC;
+            color: #166534;
+            border-radius: 5px;
+            padding: 2px 7px;
+            height: 22px;
+            font-size: 10.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .btn-pill-copy:hover {
+            background: #166534;
+            color: #FFFFFF;
+            border-color: #14532D;
+            transform: scale(1.04);
+        }
+        .btn-pill-duplicate {
+            background: #F8FAFC;
+            border: 1px solid #CBD5E1;
+            color: #334155;
+            border-radius: 5px;
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            line-height: 1;
+            padding: 0;
+        }
+        .btn-pill-duplicate:hover {
+            background: #0D5C3A;
+            color: #FFFFFF;
+            border-color: #0D5C3A;
+            transform: scale(1.12);
+        }
+
         .btn-pill-remove {
             background: #FFF1F2;
             border: 1px solid #FECDD3;
