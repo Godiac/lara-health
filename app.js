@@ -1677,13 +1677,29 @@ function formatScheduleSingleDose(dozStr, isMed) {
     }
     let s = String(dozStr).trim();
 
-    // Check for "A x B [unit]" pattern (e.g. 1 x 1 tablet, 2 x 1 kapsül, 1 x 2 puff, 1x1)
-    const matchX = s.match(/^(\d+)\s*[xX*]\s*([0-9\-]+)(.*)$/);
+    // Check for "A x B [unit]" pattern (e.g. 1 x 2 kapsül, 2 x 1 kapsül, 1 x 1 tablet, 1x2, 2x1)
+    const matchX = s.match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
     if (matchX) {
-        const amount = matchX[2].trim();
+        const firstNum = matchX[1].trim();
+        const secondNum = matchX[2].trim();
         let unit = matchX[3].trim();
+
+        const uLower = unit.toLowerCase();
+        let amount = firstNum;
+        if (secondNum.includes('-')) {
+            amount = secondNum;
+        } else if (uLower.includes('damla') || uLower.includes('puff') || uLower.includes('puf') || uLower.includes('sprey')) {
+            const secVal = parseInt(secondNum, 10);
+            if (secVal > 1) {
+                amount = secondNum;
+            }
+        } else {
+            // Klinik Kuralı: 1x2 kapsül -> 1 kapsül (o anda 1 adet), 2x1 -> 2 kapsül (o anda 2 adet), 1x1 -> 1 kapsül
+            amount = firstNum;
+        }
+
         if (unit) {
-            return `${amount} ${unit}`;
+            return amount + ' ' + unit;
         } else {
             return amount;
         }
@@ -3547,8 +3563,8 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
             } else {
                 slotItems.forEach(it => {
                     const tagXml = it.isMed 
-                        ? `<w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="1E3A8A"/></w:rPr><w:t>[İLAÇ] </w:t></w:r>`
-                        : `<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t>&#x25A1; </w:t></w:r>`;
+                        ? `<w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="15"/><w:color w:val="1E3A8A"/></w:rPr><w:t xml:space="preserve">[İLAÇ] </w:t></w:r>`
+                        : `<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="18"/><w:color w:val="4B5563"/></w:rPr><w:t xml:space="preserve">&#x25A1; </w:t></w:r>`;
 
                     itemsXml += `
                     <w:p><w:pPr><w:spacing w:before="40" w:after="20"/></w:pPr>
