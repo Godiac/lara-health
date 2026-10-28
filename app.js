@@ -1671,6 +1671,38 @@ function togglePrescriptionItem(id) {
     renderAll();
 }
 
+function formatScheduleSingleDose(dozStr, isMed) {
+    if (!dozStr || !String(dozStr).trim()) {
+        return isMed ? '1 tablet' : '1 kapsül';
+    }
+    let s = String(dozStr).trim();
+
+    // Check for "A x B [unit]" pattern (e.g. 1 x 1 tablet, 2 x 1 kapsül, 1 x 2 puff, 1x1)
+    const matchX = s.match(/^(\d+)\s*[xX*]\s*([0-9\-]+)(.*)$/);
+    if (matchX) {
+        const amount = matchX[2].trim();
+        let unit = matchX[3].trim();
+        if (unit) {
+            return `${amount} ${unit}`;
+        } else {
+            return amount;
+        }
+    }
+
+    return s;
+}
+
+function getItemScheduleSlots(item) {
+    const z = (item.zaman || '').toLowerCase();
+    const slots = [];
+    if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) slots.push('sabah');
+    if (z.includes('öğle') || z.includes('ogle')) slots.push('ogle');
+    if (z.includes('akşam') || z.includes('aksam')) slots.push('aksam');
+    if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) slots.push('yatmadan');
+    if (slots.length === 0) slots.push('sabah');
+    return slots;
+}
+
 function duplicateRxItem(idx, forceSlot) {
     if (idx < 0 || idx >= prescriptionList.length) return;
     const src = prescriptionList[idx];
@@ -1685,15 +1717,31 @@ function duplicateRxItem(idx, forceSlot) {
         (r.urunAdi && r.urunAdi.trim().toLowerCase() === productName)
     );
 
-    // Kopyalama: Kullanıcının istediği gibi varsayılan olarak TAM AYNI vakte (altına) eklenir
-    const newSlotName = forceSlot ? (SLOT_NAMES_TR[forceSlot] || forceSlot) : (src.zaman || 'Sabah');
+    // Akıllı eşleşen vakit ataması:
+    // Eğer sabah vaktindeyse otomatik akşam eklenir (böylece sabah ve akşam ayrı ayrı yer alır)
+    // Eğer akşamdaysa sabah eklenir
+    // Eğer öğleyse akşam eklenir
+    // Eğer yatmadandaysa sabah eklenir
+    let targetSlot = forceSlot;
+    if (!targetSlot) {
+        const srcSlots = getItemScheduleSlots(src);
+        const firstSlot = srcSlots[0] || 'sabah';
+        if (firstSlot === 'sabah') targetSlot = 'aksam';
+        else if (firstSlot === 'aksam') targetSlot = 'sabah';
+        else if (firstSlot === 'ogle') targetSlot = 'aksam';
+        else if (firstSlot === 'yatmadan') targetSlot = 'sabah';
+        else targetSlot = 'aksam';
+    }
+    const newSlotName = SLOT_NAMES_TR[targetSlot] || targetSlot || 'Akşam';
 
     const newTotalCount = existingCopies.length + 1;
     const newFreqStr = 'Günde ' + newTotalCount + ' kez';
+    const cleanDose = formatScheduleSingleDose(src.doz, !!src.isMedication);
 
     existingCopies.forEach(copy => {
-        if (!copy.siklik || copy.siklik.includes('Günde')) {
-            copy.siklik = newFreqStr;
+        copy.siklik = newFreqStr;
+        if (copy.doz && copy.doz.includes('x')) {
+            copy.doz = cleanDose;
         }
     });
 
@@ -1705,7 +1753,7 @@ function duplicateRxItem(idx, forceSlot) {
         urunAdi: src.urunAdi,
         marka: src.marka || '',
         etkenMadde: src.etkenMadde || '',
-        doz: src.doz || (src.isMedication ? '1 x 1 tablet' : '1 x 1 kapsül'),
+        doz: cleanDose,
         siklik: newFreqStr,
         zaman: newSlotName,
         kullanim: src.kullanim || (src.isMedication ? 'Tok karnına' : 'Yemekten sonra'),
@@ -1713,10 +1761,10 @@ function duplicateRxItem(idx, forceSlot) {
         not: src.not || ''
     };
 
-    // Insert directly after the original item for grouped presentation
+    // İlgili ürünün hemen arkasına ekle
     prescriptionList.splice(idx + 1, 0, newItem);
 
-    rxToastMessage = '📋 "' + src.urunAdi + '" takviyesinden bir kopya daha oluşturuldu (' + newFreqStr + ').';
+    rxToastMessage = '📋 "' + src.urunAdi + '" için ' + newSlotName + ' vaktine kopya oluşturuldu (' + newFreqStr + ').';
     updateRxUI();
     renderAll();
     setTimeout(() => {
@@ -2776,14 +2824,23 @@ function buildDailyScheduleHtml(items) {
     items.forEach((item) => {
         if (isIVProduct(item)) return; // Skip IV infusions in daily oral schedule!
         const realIdx = prescriptionList.indexOf(item);
-        const slot = getItemScheduleSlot(item);
+        const slots = getItemScheduleSlots(item);
         const isMed = isMedicationProduct(item);
-        schedule[slot].push({
-            idx: realIdx >= 0 ? realIdx : 0,
-            item: item,
-            isMed: isMed,
-            name: item.urunAdi,
-            detail: (item.doz || (isMed ? '1 tablet' : '1 kapsül')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle'))
+        const singleDose = formatScheduleSingleDose(item.doz, isMed);
+        const usageNote = (item.kullanim || (isMed ? 'Tok karnına' : 'Yemekten sonra')).trim();
+        const detailStr = usageNote ? (singleDose + ' · ' + usageNote) : singleDose;
+
+        slots.forEach(slot => {
+            if (schedule[slot]) {
+                schedule[slot].push({
+                    idx: realIdx >= 0 ? realIdx : 0,
+                    item: item,
+                    isMed: isMed,
+                    name: item.urunAdi,
+                    detail: detailStr,
+                    currentSlot: slot
+                });
+            }
         });
     });
 
@@ -3437,24 +3494,22 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         const oralList = [...medItems, ...suppItems];
 
         oralList.forEach(item => {
-            const z = (item.zaman || '').toLowerCase();
             const isMed = isMedicationProduct(item);
+            const singleDose = formatScheduleSingleDose(item.doz, isMed);
+            const usageNote = (item.kullanim || (isMed ? 'Tok karnına' : 'Yemekten sonra')).trim();
+            const detailStr = usageNote ? (singleDose + ' · ' + usageNote) : singleDose;
             const entry = {
                 name: item.urunAdi || '',
                 isMed: isMed,
-                detail: (item.doz || (isMed ? '1 tab' : '1 kap')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle'))
+                detail: detailStr
             };
-            if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-                schedule.sabah.push(entry);
-            } else if (z.includes('öğle') || z.includes('ogle')) {
-                schedule.ogle.push(entry);
-            } else if (z.includes('akşam') || z.includes('aksam')) {
-                schedule.aksam.push(entry);
-            } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-                schedule.yatmadan.push(entry);
-            } else {
-                schedule.sabah.push(entry);
-            }
+
+            const slots = getItemScheduleSlots(item);
+            slots.forEach(s => {
+                if (schedule[s]) {
+                    schedule[s].push(entry);
+                }
+            });
         });
 
         // Sort so medications come first in each box
@@ -3919,25 +3974,22 @@ async function downloadPrescriptionWord() {
         const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
         const oralList = [...medItems, ...suppItems];
         oralList.forEach(item => {
-            const z = (item.zaman || '').toLowerCase();
             const isMed = isMedicationProduct(item);
+            const singleDose = formatScheduleSingleDose(item.doz, isMed);
+            const usageNote = (item.kullanim || (isMed ? 'Tok karnına' : 'Yemekten sonra')).trim();
+            const detailStr = usageNote ? (singleDose + ' · ' + usageNote) : singleDose;
             const entry = {
                 name: escapeXml(item.urunAdi),
                 isMed: isMed,
-                detail: escapeXml((item.doz || (isMed ? '1 tablet' : '1 kapsül')) + ' · ' + (item.kullanim || (isMed ? 'tok' : 'yemekle')))
+                detail: escapeXml(detailStr)
             };
 
-            if (z.includes('sabah') || z.includes('kahvaltı') || z.includes('aç karnına')) {
-                schedule.sabah.push(entry);
-            } else if (z.includes('öğle') || z.includes('ogle')) {
-                schedule.ogle.push(entry);
-            } else if (z.includes('akşam') || z.includes('aksam')) {
-                schedule.aksam.push(entry);
-            } else if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) {
-                schedule.yatmadan.push(entry);
-            } else {
-                schedule.sabah.push(entry);
-            }
+            const slots = getItemScheduleSlots(item);
+            slots.forEach(s => {
+                if (schedule[s]) {
+                    schedule[s].push(entry);
+                }
+            });
         });
 
         function renderScheduleBoxWord(title, items) {
