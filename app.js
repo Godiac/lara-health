@@ -1790,6 +1790,70 @@ function duplicateRxItem(idx, forceSlot) {
     }, 3500);
 }
 
+
+function moveIVItemWithinWeek(idx, direction) {
+    if (idx < 0 || idx >= prescriptionList.length) return;
+    const target = prescriptionList[idx];
+    const targetWeek = (target.hafta || target.zaman || '1. Hafta').trim();
+
+    const weekIndices = [];
+    prescriptionList.forEach((item, i) => {
+        if (isIVProduct(item) && (item.hafta || item.zaman || '1. Hafta').trim() === targetWeek) {
+            weekIndices.push(i);
+        }
+    });
+
+    const currentPos = weekIndices.indexOf(idx);
+    if (currentPos === -1) return;
+    const newPos = currentPos + direction;
+    if (newPos < 0 || newPos >= weekIndices.length) return;
+
+    const swapIdx = weekIndices[newPos];
+    const temp = prescriptionList[idx];
+    prescriptionList[idx] = prescriptionList[swapIdx];
+    prescriptionList[swapIdx] = temp;
+
+    updateRxUI();
+    renderAll();
+}
+
+function setIVItemPositionWithinWeek(idx, targetPos1Based) {
+    if (idx < 0 || idx >= prescriptionList.length) return;
+    const target = prescriptionList[idx];
+    const targetWeek = (target.hafta || target.zaman || '1. Hafta').trim();
+
+    const weekIndices = [];
+    prescriptionList.forEach((item, i) => {
+        if (isIVProduct(item) && (item.hafta || item.zaman || '1. Hafta').trim() === targetWeek) {
+            weekIndices.push(i);
+        }
+    });
+
+    const currentPos = weekIndices.indexOf(idx);
+    const newPos = targetPos1Based - 1;
+    if (currentPos === -1 || newPos < 0 || newPos >= weekIndices.length || currentPos === newPos) return;
+
+    const [movedItem] = prescriptionList.splice(idx, 1);
+    
+    const updatedWeekIndices = [];
+    prescriptionList.forEach((item, i) => {
+        if (isIVProduct(item) && (item.hafta || item.zaman || '1. Hafta').trim() === targetWeek) {
+            updatedWeekIndices.push(i);
+        }
+    });
+
+    if (newPos >= updatedWeekIndices.length) {
+        const lastIdx = updatedWeekIndices[updatedWeekIndices.length - 1];
+        prescriptionList.splice(lastIdx + 1, 0, movedItem);
+    } else {
+        const insertAt = updatedWeekIndices[newPos];
+        prescriptionList.splice(insertAt, 0, movedItem);
+    }
+
+    updateRxUI();
+    renderAll();
+}
+
 function duplicateIVItem(idx) {
     if (idx < 0 || idx >= prescriptionList.length) return;
     const src = prescriptionList[idx];
@@ -2473,13 +2537,41 @@ function renderRxDrawerBody() {
 
     // 1. IV PROTOKOLÜ BÖLÜMÜ
     let ivSectionHtml = '';
-    if (ivItems.length > 0) {
-        let ivRowsHtml = '';
+    if (ivItems.length > 0) {        let ivRowsHtml = '';
         prescriptionList.forEach((item, realIdx) => {
             if (!isIVProduct(item)) return;
             const weekVal = (item.hafta || item.zaman || '1. Hafta').trim();
             const weekOptions = ['1. Hafta', '2. Hafta', '3. Hafta', '4. Hafta', '5. Hafta', '6. Hafta', '7. Hafta', '8. Hafta']
                 .map(w => `<option value="${w}" ${w === weekVal ? 'selected' : ''}>${w}</option>`).join('');
+
+            // Calculate position within this week
+            const weekItems = prescriptionList.filter(it => isIVProduct(it) && (it.hafta || it.zaman || '1. Hafta').trim() === weekVal);
+            const posInWeek = weekItems.indexOf(item) + 1;
+            const totalInWeek = weekItems.length;
+
+            let orderSelectorHtml = '';
+            if (totalInWeek > 1) {
+                let options = '';
+                for (let p = 1; p <= totalInWeek; p++) {
+                    options += `<option value="${p}" ${p === posInWeek ? 'selected' : ''}>${p}. Sıra</option>`;
+                }
+                orderSelectorHtml = `
+                    <div style="display: flex; align-items: center; gap: 4px; justify-content: center;">
+                        <select class="plan-input-inline" style="font-weight: 700; color: #1E3A8A; background: #EFF6FF; border: 1.5px solid #BFDBFE; padding: 4px 6px; font-size: 11.5px; border-radius: 5px; cursor: pointer;" 
+                                onchange="setIVItemPositionWithinWeek(${realIdx}, parseInt(this.value, 10))" title="Bu haftadaki infüzyon sırasını değiştir (1, 2, 3)">
+                            ${options}
+                        </select>
+                        <div style="display: flex; flex-direction: column; gap: 1px;">
+                            <button type="button" onclick="moveIVItemWithinWeek(${realIdx}, -1)" ${posInWeek === 1 ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : 'style="cursor:pointer;"'} 
+                                    title="Yukarı Taşı" style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:3px; font-size:9px; padding:1px 4px; line-height:1; color:#334155;">▲</button>
+                            <button type="button" onclick="moveIVItemWithinWeek(${realIdx}, 1)" ${posInWeek === totalInWeek ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : 'style="cursor:pointer;"'} 
+                                    title="Aşağı Taşı" style="background:#F1F5F9; border:1px solid #CBD5E1; border-radius:3px; font-size:9px; padding:1px 4px; line-height:1; color:#334155;">▼</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                orderSelectorHtml = `<span style="font-size: 11.5px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 3px 8px; border-radius: 4px; border: 1px solid #E2E8F0;">1. Sıra</span>`;
+            }
 
             ivRowsHtml += `
                 <tr>
@@ -2489,23 +2581,26 @@ function renderRxDrawerBody() {
                             ${weekOptions}
                         </select>
                     </td>
-                    <td style="width: 32%; vertical-align: middle;">
+                    <td style="width: 11%; text-align: center; vertical-align: middle;">
+                        ${orderSelectorHtml}
+                    </td>
+                    <td style="width: 27%; vertical-align: middle;">
                         <div style="font-weight: 700; color: #111827; font-size: 14px; line-height: 1.35;">${escapeXml(item.urunAdi)}</div>
                         <div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">${escapeXml(item.marka || 'IV Therapy')}</div>
                     </td>
-                    <td style="width: 14%; vertical-align: middle;">
+                    <td style="width: 12%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.doz || ''}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)" style="padding: 7px 10px; font-size: 13px;">
+                                onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)" style="padding: 7px 10px; font-size: 13px;">
+                    </td>
+                    <td style="width: 11%; vertical-align: middle;">
+                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Haftada 1'}" 
+                                onchange="prescriptionList[${realIdx}].siklik = this.value;" placeholder="Haftada 1" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 12%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Haftada 1'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value;" placeholder="Haftada 1" style="padding: 7px 10px; font-size: 13px;">
-                    </td>
-                    <td style="width: 14%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.kullanim || 'Damardan (IV)'}" 
-                               onchange="prescriptionList[${realIdx}].kullanim = this.value;" placeholder="Damardan (IV)" style="padding: 7px 10px; font-size: 13px;">
+                                onchange="prescriptionList[${realIdx}].kullanim = this.value;" placeholder="Damardan (IV)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 14%; text-align: center; vertical-align: middle;">
+                    <td style="width: 13%; text-align: center; vertical-align: middle;">
                         <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
                             <button type="button" class="btn-duplicate-iv" onclick="duplicateIVItem(${realIdx})" title="Bu IV infüzyonunu bir sonraki haftaya çoğalt" style="padding: 6px 11px; font-size: 12px; font-weight: 700; background: #F0F4F6; border: 1.5px solid #869FA8; border-radius: 6px; color: #1E293B; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
                                 <span>📋</span> <span>Çoğalt</span>
@@ -2532,11 +2627,12 @@ function renderRxDrawerBody() {
                     <thead>
                         <tr>
                             <th style="width: 14%;">HAFTA</th>
-                            <th style="width: 32%;">IV BİLEŞENİ</th>
-                            <th style="width: 14%;">DOZ</th>
-                            <th style="width: 12%;">SIKLIK</th>
-                            <th style="width: 14%;">UYGULAMA</th>
-                            <th style="width: 14%; text-align: center;">İŞLEM</th>
+                            <th style="width: 11%; text-align: center;">SIRA</th>
+                            <th style="width: 27%;">IV BİLEŞENİ</th>
+                            <th style="width: 12%;">DOZ</th>
+                            <th style="width: 11%;">SIKLIK</th>
+                            <th style="width: 12%;">UYGULAMA</th>
+                            <th style="width: 13%; text-align: center;">İŞLEM</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -3290,23 +3386,17 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
             </w:tblBorders>
             <w:tblCellMar>
               <w:top w:w="120" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>
-              <w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/>
+              <w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>
             </w:tblCellMar>
           </w:tblPr>
-          <w:tblGrid>
-            <w:gridCol w:w="2200"/>
-            <w:gridCol w:w="3200"/>
-            <w:gridCol w:w="584"/>
-            <w:gridCol w:w="3200"/>
-          </w:tblGrid>
           <w:tr>
             <w:trPr><w:tblHeader/></w:trPr>
             <w:tc>
-              <w:tcPr><w:tcW w:w="2200" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
+              <w:tcPr><w:tcW w:w="2000" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
               <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
             </w:tc>
             <w:tc>
-              <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
+              <w:tcPr><w:tcW w:w="7184" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F0F4F6"/></w:tcPr>
               <w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>İçerik</w:t></w:r></w:p>
             </w:tc>
           </w:tr>
@@ -3327,74 +3417,111 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         });
 
         sortedWeeks.forEach(([wName, wItems]) => {
-            const totalItems = wItems.length;
-            if (totalItems === 1) {
-                const item1 = wItems[0];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                xml += `
-                <w:tr>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr>
-                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(wName)}</w:t></w:r></w:p>
-                  </w:tc>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr>
-                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
-                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                  </w:tc>
-                </w:tr>
-                `;
-            } else {
-                for (let i = 0; i < totalItems; i += 2) {
-                    const isFirstChunk = (i === 0);
-                    const hasTwoInChunk = (i + 1 < totalItems);
-                    const item1 = wItems[i];
-                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                    const vMergeXml = isFirstChunk ? '<w:vMerge w:val="restart"/>' : '<w:vMerge/>';
+            const total = wItems.length;
+            let cellsXml = '';
 
-                    if (hasTwoInChunk) {
-                        const item2 = wItems[i + 1];
-                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                        xml += `
-                        <w:tr>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="2200" w:type="dxa"/>${vMergeXml}</w:tcPr>
-                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${isFirstChunk ? escapeDocXml(wName) : ''}</w:t></w:r></w:p>
-                          </w:tc>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
-                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
-                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                          </w:tc>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
-                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr><w:t>+</w:t></w:r></w:p>
-                          </w:tc>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
-                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item2.urunAdi + d2)}</w:t></w:r></w:p>
-                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item2.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                          </w:tc>
-                        </w:tr>
-                        `;
-                    } else {
-                        // Single item left in chunk (e.g. 3rd item in a 3-item week)
-                        xml += `
-                        <w:tr>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="2200" w:type="dxa"/>${vMergeXml}</w:tcPr>
-                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${isFirstChunk ? escapeDocXml(wName) : ''}</w:t></w:r></w:p>
-                          </w:tc>
-                          <w:tc>
-                            <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr>
-                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr><w:t>+  </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
-                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/><w:ind w:left="320"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                          </w:tc>
-                        </w:tr>
+            // Week cell (width 2000)
+            cellsXml += `
+            <w:tc>
+              <w:tcPr>
+                <w:tcW w:w="2000" w:type="dxa"/>
+                <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
+              </w:tcPr>
+              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
+                  <w:t>${escapeDocXml(wName)}</w:t>
+                </w:r>
+              </w:p>
+            </w:tc>
+            `;
+
+            if (total === 1) {
+                const it = wItems[0];
+                const d = it.doz ? (' (' + it.doz + ')') : '';
+                cellsXml += `
+                <w:tc>
+                  <w:tcPr><w:tcW w:w="7184" w:type="dxa"/></w:tcPr>
+                  <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr>
+                      <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
+                    </w:r>
+                  </w:p>
+                  <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr>
+                      <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
+                    </w:r>
+                  </w:p>
+                </w:tc>
+                `;
+            } else if (total === 2) {
+                wItems.forEach((it, i) => {
+                    if (i > 0) {
+                        cellsXml += `
+                        <w:tc>
+                          <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
+                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr>
+                              <w:t>+</w:t>
+                            </w:r>
+                          </w:p>
+                        </w:tc>
                         `;
                     }
-                }
+                    const d = it.doz ? (' (' + it.doz + ')') : '';
+                    cellsXml += `
+                    <w:tc>
+                      <w:tcPr><w:tcW w:w="3300" w:type="dxa"/></w:tcPr>
+                      <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                        <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr>
+                          <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
+                        </w:r>
+                      </w:p>
+                      <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                        <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
+                          <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
+                        </w:r>
+                      </w:p>
+                    </w:tc>
+                    `;
+                });
+            } else {
+                // 3 or more items side-by-side
+                const plusW = 442;
+                const totalPlusW = (total - 1) * plusW;
+                const itemW = Math.floor((7184 - totalPlusW) / total);
+                wItems.forEach((it, i) => {
+                    if (i > 0) {
+                        cellsXml += `
+                        <w:tc>
+                          <w:tcPr><w:tcW w:w="${plusW}" w:type="dxa"/></w:tcPr>
+                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                            <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr>
+                              <w:t>+</w:t>
+                            </w:r>
+                          </w:p>
+                        </w:tc>
+                        `;
+                    }
+                    const d = it.doz ? (' (' + it.doz + ')') : '';
+                    cellsXml += `
+                    <w:tc>
+                      <w:tcPr><w:tcW w:w="${itemW}" w:type="dxa"/></w:tcPr>
+                      <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                        <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr>
+                          <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
+                        </w:r>
+                      </w:p>
+                      <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                        <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="14"/><w:color w:val="6B7280"/></w:rPr>
+                          <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
+                        </w:r>
+                      </w:p>
+                    </w:tc>
+                    `;
+                });
             }
+
+            xml += `<w:tr>${cellsXml}</w:tr>`;
         });
 
         xml += `</w:tbl>`;
@@ -3856,487 +3983,6 @@ async function downloadPrescriptionWord() {
 
     const effectiveMode = getEffectiveHekimMode();
 
-    let ivTableHtml = '';
-    if (hasIV) {
-        const weeksMap = new Map();
-        ivItems.forEach(item => {
-            let w = (item.hafta || item.zaman || '1. Hafta').trim();
-            if (!w.toLowerCase().includes('hafta')) w = w + '. Hafta';
-            if (!weeksMap.has(w)) weeksMap.set(w, []);
-            weeksMap.get(w).push(item);
-        });
-
-        const sortedWeeks = Array.from(weeksMap.entries()).sort((a, b) => {
-            const numA = parseInt(a[0].match(/\d+/) || '0', 10);
-            const numB = parseInt(b[0].match(/\d+/) || '0', 10);
-            return numA - numB;
-        });
-
-        let ivRows = '';
-        sortedWeeks.forEach(([wName, wItems]) => {
-            const totalItems = wItems.length;
-            if (totalItems === 1) {
-                const item1 = wItems[0];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                ivRows += `
-                    <tr style="border-bottom: 1pt solid #E5E7EB;">
-                        <td style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
-                        <td colspan="3" style="padding: 10pt 8pt; width: 78%;">
-                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                        </td>
-                    </tr>
-                `;
-            } else {
-                const totalChunks = Math.ceil(totalItems / 2);
-                for (let i = 0; i < totalItems; i += 2) {
-                    const isFirstChunk = (i === 0);
-                    const hasTwoInChunk = (i + 1 < totalItems);
-                    const item1 = wItems[i];
-                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                    
-                    if (hasTwoInChunk) {
-                        const item2 = wItems[i + 1];
-                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                        ivRows += `
-                            <tr style="border-bottom: ${i + 2 >= totalItems ? '1pt solid #E5E7EB' : 'none'};">
-                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1pt solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
-                                <td style="padding: 8pt 8pt; width: 35%;">
-                                    <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                                    <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                                </td>
-                                <td style="padding: 8pt 4pt; font-weight: bold; font-size: 13pt; color: #111827; text-align: center; width: 8%;">+</td>
-                                <td style="padding: 8pt 8pt; width: 35%;">
-                                    <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
-                                    <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
-                                </td>
-                            </tr>
-                        `;
-                    } else {
-                        ivRows += `
-                            <tr style="border-bottom: 1pt solid #E5E7EB;">
-                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1pt solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
-                                <td colspan="3" style="padding: 8pt 8pt; width: 78%;">
-                                    <div style="display: flex; align-items: center; gap: 8pt;">
-                                        <span style="font-weight: bold; font-size: 13pt; color: #869FA8;">+</span>
-                                        <div>
-                                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }
-                }
-            }
-        });
-
-        ivTableHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 13pt; font-weight: bold; color: #111827; margin: 16pt 0 8pt 0;">IV PROTOKOLÜ</div>
-            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
-                <thead>
-                    <tr>
-                        <th style="width: 22%; background: #F0F4F6; border-top: 1.5pt solid #869FA8; border-bottom: 1.5pt solid #869FA8;"></th>
-                        <th colspan="3" style="width: 78%; background: #F0F4F6; color: #111827; font-size: 9.5pt; font-weight: bold; padding: 8pt; border-top: 1.5pt solid #869FA8; border-bottom: 1.5pt solid #869FA8;">İçerik</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${ivRows}
-                </tbody>
-            </table>
-            <p style="font-size: 8.5pt; color: #6B7280; margin-bottom: 16pt;">
-                Bu protokol kişiye özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
-            </p>
-        `;
-
-        if (hasMed || hasSupp) {
-            ivTableHtml += `<br clear="all" style="mso-special-character:line-break;page-break-before:always">`;
-        }
-    }
-
-    let medTableHtml = '';
-    if (hasMed) {
-        let rowsHtml = '';
-        const tableMedItems = consolidateRxItemsForTable(medItems);
-        tableMedItems.forEach((item, idx) => {
-            const num = idx + 1;
-            const urunAdi = escapeXml(item.urunAdi || '');
-            const marka = escapeXml(item.etkenMadde || item.marka || 'Medikal İlaç');
-            const titrationNote = item.not 
-                ? `<div style="font-size: 9pt; color: #1E3A8A; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
-                : '';
-            const doz = escapeXml(item.doz || '1 x 1 tablet');
-            const siklik = escapeXml(item.siklik || 'Günde 1 kez');
-            const zaman = escapeXml(item.zaman || 'Sabah');
-            const kullanim = escapeXml(item.kullanim || 'Tok karnına');
-            const sure = escapeXml(item.sure || 'Sürekli');
-
-            rowsHtml += `
-                <tr style="border-bottom: 1pt solid #E5E7EB;">
-                    <td style="padding: 9pt 6pt; font-size: 10pt; color: #1E3A8A; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
-                    <td style="padding: 9pt 8pt; vertical-align: top; width: 34%;">
-                        <div style="font-size: 10.5pt; font-weight: bold; color: #111827; font-family: 'Poppins', Arial, sans-serif;">${urunAdi}</div>
-                        <div style="font-size: 8.5pt; color: #6B7280; margin-top: 1pt;">${marka}</div>
-                        ${titrationNote}
-                    </td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${doz}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${siklik}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${zaman}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${kullanim}</td>
-                    <td style="padding: 9pt 6pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 10%;">${sure}</td>
-                </tr>
-            `;
-        });
-
-        medTableHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Medikal İlaç Tedavisi</div>
-            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
-                <thead>
-                    <tr>
-                        <th style="width: 4%; text-align: center;">#</th>
-                        <th style="width: 34%;">İLAÇ / ETKEN MADDE</th>
-                        <th style="width: 12%;">DOZ</th>
-                        <th style="width: 14%;">SIKLIK</th>
-                        <th style="width: 12%;">ZAMAN</th>
-                        <th style="width: 14%;">KULLANIM</th>
-                        <th style="width: 10%;">SÜRE</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-        `;
-    }
-
-    let suppTableHtml = '';
-    if (hasSupp) {
-        let rowsHtml = '';
-        const tableSuppItems = consolidateRxItemsForTable(suppItems);
-        tableSuppItems.forEach((item, idx) => {
-            const num = idx + 1;
-            const urunAdi = escapeXml(item.urunAdi || '');
-            const marka = escapeXml(item.marka || '');
-            const titrationNote = item.not 
-                ? `<div style="font-size: 9pt; color: #869FA8; font-weight: 600; margin-top: 3pt;">${escapeXml(item.not)}</div>` 
-                : '';
-            const doz = escapeXml(item.doz || '1 x 1 kapsül');
-            const siklik = escapeXml(item.siklik || 'Günde 1 kez');
-            const zaman = escapeXml(item.zaman || 'Sabah');
-            const kullanim = escapeXml(item.kullanim || 'Yemekten sonra');
-            const sure = escapeXml(item.sure || '3 ay');
-
-            rowsHtml += `
-                <tr style="border-bottom: 1pt solid #E5E7EB;">
-                    <td style="padding: 9pt 6pt; font-size: 10pt; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
-                    <td style="padding: 9pt 8pt; vertical-align: top; width: 34%;">
-                        <div style="font-size: 10.5pt; font-weight: bold; color: #111827; font-family: 'Poppins', Arial, sans-serif;">${urunAdi}</div>
-                        <div style="font-size: 8.5pt; color: #6B7280; margin-top: 1pt;">${marka}</div>
-                        ${titrationNote}
-                    </td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${doz}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${siklik}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${zaman}</td>
-                    <td style="padding: 9pt 8pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 14%;">${kullanim}</td>
-                    <td style="padding: 9pt 6pt; font-size: 9.5pt; color: #111827; vertical-align: top; width: 10%;">${sure}</td>
-                </tr>
-            `;
-        });
-
-        suppTableHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 12pt; font-weight: bold; color: #111827; margin: 12pt 0 6pt 0;">Destekleyici Takviye Listesi</div>
-            <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 16pt;">
-                <thead>
-                    <tr>
-                        <th style="width: 4%; text-align: center;">#</th>
-                        <th style="width: 34%;">TAKVİYE</th>
-                        <th style="width: 12%;">DOZ</th>
-                        <th style="width: 14%;">SIKLIK</th>
-                        <th style="width: 12%;">ZAMAN</th>
-                        <th style="width: 14%;">KULLANIM</th>
-                        <th style="width: 10%;">SÜRE</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-        `;
-    }
-
-    let scheduleCardsHtml = '';
-    if (hasMed || hasSupp) {
-        const schedule = { sabah: [], ogle: [], aksam: [], yatmadan: [] };
-        const oralList = [...medItems, ...suppItems];
-        oralList.forEach(item => {
-            const isMed = isMedicationProduct(item);
-            const singleDose = formatScheduleSingleDose(item.doz, isMed);
-            const usageNote = (item.kullanim || (isMed ? 'Tok karnına' : 'Yemekten sonra')).trim();
-            const detailStr = usageNote ? (singleDose + ' · ' + usageNote) : singleDose;
-            const entry = {
-                name: escapeXml(item.urunAdi),
-                isMed: isMed,
-                detail: escapeXml(detailStr)
-            };
-
-            const slots = getItemScheduleSlots(item);
-            slots.forEach(s => {
-                if (schedule[s]) {
-                    schedule[s].push(entry);
-                }
-            });
-        });
-
-        function renderScheduleBoxWord(title, items) {
-            let content = '';
-            if (items.length === 0) {
-                content = '<div style="color: #9CA3AF; font-size: 14pt; padding: 10pt 0; text-align: center;">—</div>';
-            } else {
-                items.forEach(it => {
-                    const tag = it.isMed ? '<span style="color: #1E3A8A; font-weight: bold; font-size: 8.5pt;">[İLAÇ] </span>' : '<span style="font-size: 10pt; color: #4B5563; margin-right: 3pt;">&#9633; </span>';
-                    content += `
-                        <div style="margin-bottom: 6pt; font-size: 9pt; text-align: left;">
-                            ${tag}
-                            <strong style="color: #111827; font-size: 9.5pt; font-family: 'Poppins', Arial, sans-serif;">${it.name}</strong>
-                            <div style="font-size: 8.5pt; color: #4B5563; margin-left: 10pt; margin-top: 1pt;">${it.detail}</div>
-                        </div>
-                    `;
-                });
-            }
-
-            return `
-                <td style="width: 25%; vertical-align: top; padding: 3pt;">
-                    <table style="width: 100%; border: 1pt solid #D1D5DB; border-radius: 6pt; background: #FFFFFF; border-collapse: separate; padding: 8pt;">
-                        <tr>
-                            <td style="border: none; padding-bottom: 6pt;">
-                                <span style="font-size: 8.5pt; font-weight: bold; color: #869FA8; letter-spacing: 0.8pt; text-transform: uppercase;">${title}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="border: none;">
-                                ${content}
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            `;
-        }
-
-        scheduleCardsHtml = `
-            <div class="section-heading">Kullanım Çizelgesi</div>
-            <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 20pt;">
-                <tr>
-                    ${renderScheduleBoxWord('SABAH', schedule.sabah)}
-                    ${renderScheduleBoxWord('ÖĞLE', schedule.ogle)}
-                    ${renderScheduleBoxWord('AKŞAM', schedule.aksam)}
-                    ${renderScheduleBoxWord('YATMADAN', schedule.yatmadan)}
-                </tr>
-            </table>
-        `;
-    }
-
-    let signatureBlockHtml = '';
-    if (effectiveMode === 'dual') {
-        signatureBlockHtml = `
-            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
-                <tr>
-                    <td style="width: 50%; vertical-align: top; border: none; text-align: center; padding: 0 14pt;">
-                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
-                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
-                    </td>
-                    <td style="width: 50%; vertical-align: top; border: none; text-align: center; padding: 0 14pt;">
-                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
-                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Longevity ve Bütüncül Sağlık Danışmanı</div>
-                    </td>
-                </tr>
-            </table>
-        `;
-    } else if (effectiveMode === 'doctor') {
-        signatureBlockHtml = `
-            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
-                <tr>
-                    <td style="width: 55%; border: none;"></td>
-                    <td style="width: 45%; vertical-align: top; border: none; text-align: center;">
-                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
-                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
-                    </td>
-                </tr>
-            </table>
-        `;
-    } else {
-        signatureBlockHtml = `
-            <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 24pt;">
-                <tr>
-                    <td style="width: 55%; border: none;"></td>
-                    <td style="width: 45%; vertical-align: top; border: none; text-align: center;">
-                        <div style="border-bottom: 1.5pt solid #111827; margin-bottom: 5pt; width: 100%;"></div>
-                        <div style="font-size: 13pt; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
-                        <div style="font-size: 9pt; color: #869FA8; font-weight: bold; margin-top: 1pt;">Longevity ve Bütüncül Sağlık Danışmanı</div>
-                    </td>
-                </tr>
-            </table>
-        `;
-    }
-
-    const danisanDisplay = danisan 
-        ? `<b style="color: #111827; font-size: 11pt;">${escapeXml(danisan)}</b>` 
-        : '<span style="color: #9CA3AF;">................................................</span>';
-
-    const docHtml = `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" 
-      xmlns:w="urn:schemas-microsoft-com:office:word" 
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<title>${escapeXml(docTitle)} • LaraHealth</title>
-<!--[if gte mso 9]>
-<xml>
- <w:WordDocument>
-  <w:View>Print</w:View>
-  <w:Zoom>100</w:Zoom>
-  <w:DoNotOptimizeForBrowser/>
- </w:WordDocument>
-</xml>
-<![endif]-->
-<style>
-@page {
-    size: 21.0cm 29.7cm;
-    margin: 2.0cm 1.8cm 2.0cm 1.8cm;
-    mso-page-orientation: portrait;
-}
-body {
-    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
-    font-size: 9.5pt;
-    line-height: 1.45;
-    color: #111827;
-    background-color: #FFFFFF;
-}
-.header-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: none;
-    margin-bottom: 14pt;
-}
-.main-title {
-    font-family: 'Poppins', sans-serif;
-    font-size: 14pt;
-    font-weight: bold;
-    color: #111827;
-    text-align: center;
-    margin: 0 0 10pt 0;
-}
-.plan-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 16pt;
-}
-.plan-table th {
-    background-color: #F0F4F6;
-    color: #111827;
-    font-size: 8.5pt;
-    font-weight: bold;
-    letter-spacing: 0.8pt;
-    text-align: left;
-    padding: 7pt 8pt;
-    border-top: 1.5pt solid #869FA8;
-    border-bottom: 1.5pt solid #869FA8;
-    text-transform: uppercase;
-}
-.section-heading {
-    font-family: 'Poppins', sans-serif;
-    font-size: 11pt;
-    font-weight: bold;
-    color: #111827;
-    margin-top: 14pt;
-    margin-bottom: 8pt;
-}
-</style>
-</head>
-<body>
-    <div style="height: 3.5pt; background: #869FA8; width: 100%; margin-bottom: 12pt;"></div>
-
-    <div class="main-title">${escapeXml(docTitle)}</div>
-
-    <table class="header-table">
-        <tr>
-            <td style="border: none; text-align: left; vertical-align: top; padding-right: 12pt; width: 50%;">
-                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">DANIŞAN</div>
-                <div style="font-size: 10.5pt; padding-top: 2pt; border-bottom: 1pt dotted #9CA3AF;">
-                    ${danisanDisplay}
-                </div>
-            </td>
-            <td style="border: none; text-align: left; vertical-align: top; padding-right: 10pt; width: 25%;">
-                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">TARİH</div>
-                <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${escapeXml(tarih)}</div>
-            </td>
-            <td style="border: none; text-align: left; vertical-align: top; width: 25%;">
-                <div style="font-size: 8pt; color: #6B7280; font-weight: bold; text-transform: uppercase; letter-spacing: 0.8pt;">KONTROL</div>
-                <div style="font-size: 11pt; font-weight: bold; color: #111827; padding-top: 2pt;">${escapeXml(kontrol)}</div>
-            </td>
-        </tr>
-    </table>
-
-    ${ivTableHtml}
-    ${medTableHtml}
-    ${suppTableHtml}
-    ${scheduleCardsHtml}
-
-    <p style="font-size: 8.5pt; color: #6B7280; line-height: 1.45; margin: 18pt 0 4pt 0;">
-        Bu protokol danışanın klinik ve biyokimyasal değerlendirmesine özel hazırlanmıştır. İlaç ve takviyeleri hekim ve diyetisyeninize danışmadan kullanmayınız; doz ve kullanım sürelerini değiştirmeyiniz.
-    </p>
-    <div style="font-size: 8pt; color: #9CA3AF; margin-bottom: 12pt;">
-        Bağdat Caddesi No: 225 • Palmiye İş Merkezi Kat: 3 • Kadıköy, İstanbul • 0216 912 07 02
-    </div>
-
-    ${signatureBlockHtml}
-</body>
-</html>`;
-
-    const blob = new Blob(['\ufeff' + docHtml], { type: 'application/msword;charset=utf-8' });
-    const filename = `LaraHealth_Klinik_Protokolu_${danisanSlug}_${tarihSlug}.doc`;
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-}
-
-function printPrescription() {
-    if (prescriptionList.length === 0) {
-        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
-        return;
-    }
-    const printWindow = window.open('', '_blank');
-    const danisan = (rxMetadata.kime || '').trim();
-    const tarih = rxMetadata.tarih || new Date().toLocaleDateString('tr-TR');
-    const kontrol = rxMetadata.kontrol || calculateDefaultControlDate();
-
-    const ivItems = prescriptionList.filter(isIVProduct);
-    const medItems = prescriptionList.filter(isMedicationProduct);
-    const suppItems = prescriptionList.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
-
-    const hasIV = ivItems.length > 0;
-    const hasMed = medItems.length > 0;
-    const hasSupp = suppItems.length > 0;
-
-    let docTitle = 'Takviye Kullanım Protokolü';
-    if (hasIV && hasMed && hasSupp) docTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
-    else if (hasIV && hasMed) docTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
-    else if (hasIV && hasSupp) docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    else if (hasMed && hasSupp) docTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
-    else if (hasMed) docTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
-    else if (hasSupp) docTitle = 'Takviye Kullanım Protokolü';
-    else if (hasIV) docTitle = 'LONGEVITY IV PROTOKOLÜ';
-
-    const effectiveMode = getEffectiveHekimMode();
-
     let ivSectionHtml = '';
     if (hasIV) {
         const weeksMap = new Map();
@@ -4355,62 +4001,38 @@ function printPrescription() {
 
         let ivRows = '';
         sortedWeeks.forEach(([wName, wItems]) => {
-            const totalItems = wItems.length;
-            if (totalItems === 1) {
-                const item1 = wItems[0];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                ivRows += `
-                    <tr style="border-bottom: 1px solid #E5E7EB;">
-                        <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
-                        <td colspan="3" style="padding: 10px 8px; width: 78%;">
-                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                        </td>
-                    </tr>
-                `;
-            } else {
-                const totalChunks = Math.ceil(totalItems / 2);
-                for (let i = 0; i < totalItems; i += 2) {
-                    const isFirstChunk = (i === 0);
-                    const hasTwoInChunk = (i + 1 < totalItems);
-                    const item1 = wItems[i];
-                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                    
-                    if (hasTwoInChunk) {
-                        const item2 = wItems[i + 1];
-                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                        ivRows += `
-                            <tr style="border-bottom: ${i + 2 >= totalItems ? '1px solid #E5E7EB' : 'none'};">
-                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1px solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
-                                <td style="padding: 8px 8px; width: 35%;">
-                                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                                    <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                                </td>
-                                <td style="padding: 8px 4px; font-weight: bold; font-size: 16px; color: #111827; text-align: center; width: 8%;">+</td>
-                                <td style="padding: 8px 8px; width: 35%;">
-                                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
-                                    <div style="font-size: 11px; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
-                                </td>
-                            </tr>
-                        `;
-                    } else {
-                        ivRows += `
-                            <tr style="border-bottom: 1px solid #E5E7EB;">
-                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1px solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
-                                <td colspan="3" style="padding: 8px 8px; width: 78%;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="font-weight: bold; font-size: 16px; color: #869FA8;">+</span>
-                                        <div>
-                                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }
+            let itemsColsHtml = '';
+            wItems.forEach((it, i) => {
+                if (i > 0) {
+                    itemsColsHtml += `
+                    <td style="padding: 6px 4px; font-weight: bold; font-size: 18px; color: #869FA8; text-align: center; width: 4%; vertical-align: middle;">
+                        +
+                    </td>
+                    `;
                 }
-            }
+                const d = it.doz ? (' (' + it.doz + ')') : '';
+                itemsColsHtml += `
+                <td style="padding: 8px 6px; text-align: left; vertical-align: middle;">
+                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(it.urunAdi + d)}</div>
+                    <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(it.marka || 'IV Therapy')}</div>
+                </td>
+                `;
+            });
+
+            ivRows += `
+                <tr style="border-bottom: 1px solid #E5E7EB;">
+                    <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 20%; vertical-align: middle;">
+                        ${escapeXml(wName)}
+                    </td>
+                    <td style="padding: 0; width: 80%; vertical-align: middle;">
+                        <table style="width: 100%; border-collapse: collapse; border: none;">
+                            <tr>
+                                ${itemsColsHtml}
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            `;
         });
 
         ivSectionHtml = `
