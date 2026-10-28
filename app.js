@@ -3105,6 +3105,82 @@ function escapeDocXml(str) {
         .replace(/'/g, '&apos;');
 }
 
+
+function consolidateRxItemsForTable(items) {
+    if (!items || !items.length) return [];
+    const groups = [];
+    const seenMap = new Map();
+
+    items.forEach(item => {
+        const prodId = item.productId || item.id;
+        const nameKey = (item.urunAdi || '').trim().toLowerCase();
+        const key = item.productId ? ('id_' + item.productId) : ('name_' + nameKey);
+
+        if (!seenMap.has(key)) {
+            const entry = { key: key, items: [item] };
+            seenMap.set(key, entry);
+            groups.push(entry);
+        } else {
+            seenMap.get(key).items.push(item);
+        }
+    });
+
+    return groups.map(g => {
+        if (g.items.length === 1) {
+            return g.items[0];
+        }
+
+        const first = g.items[0];
+        const count = g.items.length;
+
+        // Combine unique zaman slots
+        const zamans = [];
+        g.items.forEach(it => {
+            const z = (it.zaman || '').trim();
+            if (z && !zamans.includes(z)) {
+                zamans.push(z);
+            }
+        });
+        const combinedZaman = zamans.length > 0 ? zamans.join(', ') : (first.zaman || 'Sabah, Akşam');
+
+        // Combined frequency
+        const combinedSiklik = 'Günde ' + count + ' kez';
+
+        // Format clean single dose
+        const cleanDose = formatScheduleSingleDose(first.doz, isMedicationProduct(first));
+
+        // Combine unique notes
+        const notes = [];
+        g.items.forEach(it => {
+            const n = (it.not || '').trim();
+            if (n && !notes.includes(n)) {
+                notes.push(n);
+            }
+        });
+        const combinedNote = notes.join(' · ');
+
+        // Combine unique usages
+        const usages = [];
+        g.items.forEach(it => {
+            const u = (it.kullanim || '').trim();
+            if (u && !usages.includes(u)) {
+                usages.push(u);
+            }
+        });
+        const combinedUsage = usages.length > 0 ? usages.join(', ') : (first.kullanim || 'Yemekten sonra');
+
+        return {
+            ...first,
+            doz: cleanDose,
+            siklik: combinedSiklik,
+            zaman: combinedZaman,
+            kullanim: combinedUsage,
+            not: combinedNote,
+            sure: first.sure || '3 ay'
+        };
+    });
+}
+
 function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
     const safeDanisan = escapeDocXml(danisan || '................................................');
     const safeTarih = escapeDocXml(tarih || '');
@@ -3376,7 +3452,8 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tr>
         `;
 
-        medItems.forEach((it, idx) => {
+        const tableMedItems = consolidateRxItemsForTable(medItems);
+        tableMedItems.forEach((it, idx) => {
             const num = idx + 1;
             const name = escapeDocXml(it.urunAdi || '');
             const brand = escapeDocXml(it.etkenMadde || it.marka || '');
@@ -3457,7 +3534,8 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:tr>
         `;
 
-        suppItems.forEach((it, idx) => {
+        const tableSuppItems = consolidateRxItemsForTable(suppItems);
+        tableSuppItems.forEach((it, idx) => {
             const num = idx + 1;
             const name = escapeDocXml(it.urunAdi || '');
             const brand = escapeDocXml(it.marka || '');
@@ -3880,7 +3958,8 @@ async function downloadPrescriptionWord() {
     let medTableHtml = '';
     if (hasMed) {
         let rowsHtml = '';
-        medItems.forEach((item, idx) => {
+        const tableMedItems = consolidateRxItemsForTable(medItems);
+        tableMedItems.forEach((item, idx) => {
             const num = idx + 1;
             const urunAdi = escapeXml(item.urunAdi || '');
             const marka = escapeXml(item.etkenMadde || item.marka || 'Medikal İlaç');
@@ -3934,7 +4013,8 @@ async function downloadPrescriptionWord() {
     let suppTableHtml = '';
     if (hasSupp) {
         let rowsHtml = '';
-        suppItems.forEach((item, idx) => {
+        const tableSuppItems = consolidateRxItemsForTable(suppItems);
+        tableSuppItems.forEach((item, idx) => {
             const num = idx + 1;
             const urunAdi = escapeXml(item.urunAdi || '');
             const marka = escapeXml(item.marka || '');
@@ -4359,7 +4439,8 @@ function printPrescription() {
     let medSectionHtml = '';
     if (hasMed) {
         let rowsHtml = '';
-        medItems.forEach((item, idx) => {
+        const tableMedItems = consolidateRxItemsForTable(medItems);
+        tableMedItems.forEach((item, idx) => {
             const num = idx + 1;
             const titrationNote = item.not 
                 ? `<div style="font-size: 11px; color: #1E3A8A; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
@@ -4405,7 +4486,8 @@ function printPrescription() {
     let suppSectionHtml = '';
     if (hasSupp) {
         let rowsHtml = '';
-        suppItems.forEach((item, idx) => {
+        const tableSuppItems = consolidateRxItemsForTable(suppItems);
+        tableSuppItems.forEach((item, idx) => {
             const num = idx + 1;
             const titrationNote = item.not 
                 ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
