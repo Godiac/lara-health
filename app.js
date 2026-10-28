@@ -2364,35 +2364,35 @@ function renderRxDrawerBody() {
 
             ivRowsHtml += `
                 <tr>
-                    <td style="width: 14%;">
-                        <select class="plan-input-inline" style="font-weight: 700; color: #111827; background: #F0F4F6;" 
+                    <td style="width: 14%; vertical-align: middle;">
+                        <select class="plan-input-inline" style="font-weight: 700; color: #111827; background: #F8FAFC; border: 1.5px solid #CBD5E1; padding: 7px 8px; font-size: 13px;" 
                                 onchange="prescriptionList[${realIdx}].hafta = this.value; prescriptionList[${realIdx}].zaman = this.value; updateRxUI(); renderAll();">
                             ${weekOptions}
                         </select>
                     </td>
-                    <td style="width: 32%;">
-                        <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${escapeXml(item.urunAdi)}</div>
-                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.marka || 'IV Therapy')}</div>
+                    <td style="width: 32%; vertical-align: middle;">
+                        <div style="font-weight: 700; color: #111827; font-size: 14px; line-height: 1.35;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">${escapeXml(item.marka || 'IV Therapy')}</div>
                     </td>
-                    <td style="width: 14%;">
+                    <td style="width: 14%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.doz || ''}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)">
+                               onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 12%;">
+                    <td style="width: 12%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.siklik || 'Haftada 1'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value;" placeholder="Haftada 1">
+                               onchange="prescriptionList[${realIdx}].siklik = this.value;" placeholder="Haftada 1" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 14%;">
+                    <td style="width: 14%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.kullanim || 'Damardan (IV)'}" 
-                               onchange="prescriptionList[${realIdx}].kullanim = this.value;" placeholder="Damardan (IV)">
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value;" placeholder="Damardan (IV)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 14%; text-align: center;">
-                        <div style="display: flex; gap: 6px; justify-content: center;">
-                            <button type="button" class="btn-duplicate-iv" onclick="duplicateIVItem(${realIdx})" title="Bu IV infüzyonunu bir sonraki haftaya çoğalt" style="padding: 4px 8px; font-size: 11px; font-weight: 600; background: #F0F4F6; border: 1px solid #869FA8; border-radius: 6px; color: #1E293B; cursor: pointer;">
-                                📋 Çoğalt
+                    <td style="width: 14%; text-align: center; vertical-align: middle;">
+                        <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                            <button type="button" class="btn-duplicate-iv" onclick="duplicateIVItem(${realIdx})" title="Bu IV infüzyonunu bir sonraki haftaya çoğalt" style="padding: 6px 11px; font-size: 12px; font-weight: 700; background: #F0F4F6; border: 1.5px solid #869FA8; border-radius: 6px; color: #1E293B; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>📋</span> <span>Çoğalt</span>
                             </button>
-                            <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} infüzyonunu reçeteden çıkar" style="padding: 4px 8px; font-size: 11px;">
-                                🗑️ Çıkar
+                            <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} infüzyonunu reçeteden çıkar" style="padding: 6px 11px; font-size: 12px; font-weight: 700; white-space: nowrap;">
+                                <span>🗑️</span> <span>Çıkar</span>
                             </button>
                         </div>
                     </td>
@@ -2401,11 +2401,12 @@ function renderRxDrawerBody() {
         });
 
         ivSectionHtml = `
-            <div class="plan-table-wrap" style="margin-bottom: 22px; border-left: 4px solid #869FA8;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
-                        <span>💉</span> <span>IV PROTOKOLÜ</span>
-                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${ivItems.length} İnfüzyon</span>
+            <div class="plan-table-wrap" style="margin-bottom: 24px; border-left: 4px solid #869FA8; flex-shrink: 0;">
+                <div style="padding: 12px 18px; background: #F8FAFC; border-bottom: 1.5px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">💉</span>
+                        <span>IV PROTOKOLÜ</span>
+                        <span style="font-size: 12px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 3px 12px; border-radius: 14px; border: 1.5px solid #CBD5E1;">${ivItems.length} İnfüzyon</span>
                     </div>
                 </div>
                 <table class="plan-rx-table">
@@ -2437,41 +2438,40 @@ function renderRxDrawerBody() {
             medCounter++;
             medRowsHtml += `
                 <tr>
-                    <td style="width: 4%; font-weight: 700; color: #1E3A8A; text-align: center;">${medCounter}</td>
-                    <td style="width: 32%;">
-                        <div style="font-weight: 700; color: #111827; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
+                    <td style="width: 4%; font-weight: 700; color: #1E3A8A; text-align: center; vertical-align: middle;">${medCounter}</td>
+                    <td style="width: 32%; vertical-align: middle;">
+                        <div style="font-weight: 700; color: #111827; font-size: 14px; display: flex; align-items: center; gap: 6px;">
                             <span>${escapeXml(item.urunAdi)}</span>
                             <span style="font-size: 10px; font-weight: 800; background: #EFF6FF; color: #1E3A8A; border: 1px solid #BFDBFE; padding: 1px 6px; border-radius: 4px;">İLAÇ</span>
                         </div>
-                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.etkenMadde || item.marka || 'Farmasötik İlaç')}</div>
+                        <div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">${escapeXml(item.etkenMadde || item.marka || 'Farmasötik İlaç')}</div>
                         <input type="text" class="plan-titration-input" placeholder="+ Tıbbi kullanım talimatı (örn: Sabah aç, akşam yemekle...)" 
                                value="${item.not || ''}" 
-                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel medikal talimat">
+                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel medikal talimat" style="padding: 5px 8px; font-size: 12px;">
                     </td>
-                    <td style="width: 13%;">
+                    <td style="width: 13%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 tablet'}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz">
+                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 13%;">
+                    <td style="width: 13%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık">
+                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 12%;">
+                    <td style="width: 12%; vertical-align: middle;">
                         <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
-                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman">
+                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 14%;">
+                    <td style="width: 14%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.kullanim || 'Tok karnına'}" 
-                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım">
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 8%;">
+                    <td style="width: 8%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.sure || 'Sürekli'}" 
-                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre">
+                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre" style="padding: 7px 8px; font-size: 12.5px;">
                     </td>
-                    <td style="width: 8%; text-align: center;">
-                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} ilacını reçeteden çıkar">
-                            <span>🗑️</span>
-                            <span>Çıkar</span>
+                    <td style="width: 8%; text-align: center; vertical-align: middle;">
+                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} ilacını reçeteden çıkar" style="padding: 6px 11px; font-size: 12px; font-weight: 700;">
+                            <span>🗑️</span> <span>Çıkar</span>
                         </button>
                     </td>
                 </tr>
@@ -2479,22 +2479,23 @@ function renderRxDrawerBody() {
         });
 
         medSectionHtml = `
-            <div class="plan-table-wrap" style="margin-bottom: 22px; border-left: 4px solid #1E3A8A;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
-                        <span>💊</span> <span>Medikal İlaç Tedavisi</span>
-                        <span style="font-size: 11.5px; font-weight: 700; background: #EFF6FF; color: #1E3A8A; padding: 2px 10px; border-radius: 12px; border: 1px solid #BFDBFE;">${medItems.length} İlaç (Prof. Dr. Arda Lembet)</span>
+            <div class="plan-table-wrap" style="margin-bottom: 24px; border-left: 4px solid #1E3A8A; flex-shrink: 0;">
+                <div style="padding: 12px 18px; background: #F8FAFC; border-bottom: 1.5px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">🩺</span>
+                        <span>Medikal İlaç Tedavisi</span>
+                        <span style="font-size: 12px; font-weight: 700; background: #EFF6FF; color: #1E3A8A; padding: 3px 12px; border-radius: 14px; border: 1.5px solid #BFDBFE;">${medItems.length} İlaç (Prof. Dr. Arda Lembet)</span>
                     </div>
                 </div>
                 <table class="plan-rx-table">
                     <thead>
                         <tr>
-                            <th style="width: 3%; text-align: center;">#</th>
-                            <th style="width: 30%;">İLAÇ / ETKEN MADDE</th>
+                            <th style="width: 4%; text-align: center;">#</th>
+                            <th style="width: 32%;">İLAÇ & ETKEN MADDE</th>
                             <th style="width: 13%;">DOZ</th>
                             <th style="width: 13%;">SIKLIK</th>
                             <th style="width: 12%;">ZAMAN</th>
-                            <th style="width: 13%;">KULLANIM</th>
+                            <th style="width: 14%;">KULLANIM</th>
                             <th style="width: 8%;">SÜRE</th>
                             <th style="width: 8%; text-align: center;">İŞLEM</th>
                         </tr>
@@ -2507,7 +2508,7 @@ function renderRxDrawerBody() {
         `;
     }
 
-    // 3. DESTEKLEYİCİ TAKVİYE LİSTESİ BÖLÜMÜ
+    // 3. TAKVİYE LİSTESİ BÖLÜMÜ
     let suppSectionHtml = '';
     if (suppItems.length > 0) {
         let suppRowsHtml = '';
@@ -2517,38 +2518,37 @@ function renderRxDrawerBody() {
             suppCounter++;
             suppRowsHtml += `
                 <tr>
-                    <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center;">${suppCounter}</td>
-                    <td style="width: 32%;">
-                        <div style="font-weight: 700; color: #111827; font-size: 13.5px;">${escapeXml(item.urunAdi)}</div>
-                        <div style="font-size: 11.5px; color: #6B7280; font-weight: 600; margin-top: 1px;">${escapeXml(item.marka)}</div>
+                    <td style="width: 4%; font-weight: 700; color: #4B5563; text-align: center; vertical-align: middle;">${suppCounter}</td>
+                    <td style="width: 32%; vertical-align: middle;">
+                        <div style="font-weight: 700; color: #111827; font-size: 14px; line-height: 1.35;">${escapeXml(item.urunAdi)}</div>
+                        <div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">${escapeXml(item.marka)}</div>
                         <input type="text" class="plan-titration-input" placeholder="+ Özel titrasyon/kullanım notu (örn: 1. Hafta gün aşırı...)" 
                                value="${item.not || ''}" 
-                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel klinik not veya titrasyon takvimi">
+                               onchange="prescriptionList[${realIdx}].not = this.value" title="Özel klinik not veya titrasyon takvimi" style="padding: 5px 8px; font-size: 12px;">
                     </td>
-                    <td style="width: 13%;">
+                    <td style="width: 13%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 kapsül'}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz (örn: 1 x 1 kapsül)">
+                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz (örn: 1 x 1 kapsül)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 13%;">
+                    <td style="width: 13%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)">
+                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 12%;">
+                    <td style="width: 12%; vertical-align: middle;">
                         <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
-                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman (Sabah/Öğle/Akşam/Yatmadan)">
+                               onchange="prescriptionList[${realIdx}].zaman = this.value; renderDailyScheduleOnly();" placeholder="Zaman (Sabah/Öğle/Akşam/Yatmadan)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 14%;">
+                    <td style="width: 14%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.kullanim || 'Yemekten sonra'}" 
-                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım (örn: Yemekten sonra)">
+                               onchange="prescriptionList[${realIdx}].kullanim = this.value; renderDailyScheduleOnly();" placeholder="Kullanım (örn: Yemekten sonra)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
-                    <td style="width: 8%;">
+                    <td style="width: 8%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.sure || '3 ay'}" 
-                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre (örn: 3 ay)">
+                               onchange="prescriptionList[${realIdx}].sure = this.value;" placeholder="Süre (örn: 3 ay)" style="padding: 7px 8px; font-size: 12.5px;">
                     </td>
-                    <td style="width: 8%; text-align: center;">
-                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar">
-                            <span>🗑️</span>
-                            <span>Çıkar</span>
+                    <td style="width: 8%; text-align: center; vertical-align: middle;">
+                        <button type="button" class="rx-btn-remove" onclick="removeRxItem(${realIdx})" title="${escapeXml(item.urunAdi)} takviyesini reçeteden çıkar" style="padding: 6px 11px; font-size: 12px; font-weight: 700;">
+                            <span>🗑️</span> <span>Çıkar</span>
                         </button>
                     </td>
                 </tr>
@@ -2556,22 +2556,23 @@ function renderRxDrawerBody() {
         });
 
         suppSectionHtml = `
-            <div class="plan-table-wrap">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                    <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 6px;">
-                        <span>🌿</span> <span>Destekleyici Takviye Listesi</span>
-                        <span style="font-size: 11.5px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 2px 10px; border-radius: 12px; border: 1px solid #D1D5DB;">${suppItems.length} Ürün (Dyt. Betül Çetin)</span>
+            <div class="plan-table-wrap" style="flex-shrink: 0; margin-bottom: 24px;">
+                <div style="padding: 12px 18px; background: #F8FAFC; border-bottom: 1.5px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">🌿</span>
+                        <span>Destekleyici Takviye Listesi</span>
+                        <span style="font-size: 12px; font-weight: 700; background: #F0F4F6; color: #869FA8; padding: 3px 12px; border-radius: 14px; border: 1.5px solid #CBD5E1;">${suppItems.length} Ürün (Dyt. Betül Çetin)</span>
                     </div>
                 </div>
                 <table class="plan-rx-table">
                     <thead>
                         <tr>
-                            <th style="width: 3%; text-align: center;">#</th>
-                            <th style="width: 30%;">TAKVİYE</th>
+                            <th style="width: 4%; text-align: center;">#</th>
+                            <th style="width: 32%;">TAKVİYE</th>
                             <th style="width: 13%;">DOZ</th>
                             <th style="width: 13%;">SIKLIK</th>
                             <th style="width: 12%;">ZAMAN</th>
-                            <th style="width: 13%;">KULLANIM</th>
+                            <th style="width: 14%;">KULLANIM</th>
                             <th style="width: 8%;">SÜRE</th>
                             <th style="width: 8%; text-align: center;">İŞLEM</th>
                         </tr>
@@ -2583,7 +2584,6 @@ function renderRxDrawerBody() {
             </div>
         `;
     }
-
     // 4. BİRLEŞİK KULLANIM ÇİZELGESİ (İlaç veya Takviye Varsa Görünür)
     let scheduleSectionHtml = '';
     if (medItems.length > 0 || suppItems.length > 0) {

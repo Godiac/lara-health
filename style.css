@@ -1109,7 +1109,12 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 18px;
+        }
+        .rx-drawer-body > * {
+            flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         /* Clean Template Document Header - NO TABLE */
@@ -1592,7 +1597,7 @@
            TAKVİYE KULLANIM PLANI & GÜNLÜK ÇİZELGE (PREMIUM CLINICAL LAYOUT)
            ========================================================================== */
         .rx-drawer {
-            max-width: min(940px, 95vw) !important;
+            max-width: min(1000px, 96vw) !important;
         }
 
         .plan-header-box {
@@ -1670,27 +1675,30 @@
 
         /* Table */
         .plan-table-wrap {
+            flex-shrink: 0;
+            min-height: fit-content;
             overflow-x: auto;
             border: 1.5px solid #E5E7EB;
             border-radius: 10px;
             background: #FFFFFF;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
         }
 
         .plan-rx-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12.5px;
+            font-size: 13px;
         }
 
         .plan-rx-table th {
             background-color: #F0F4F6;
             color: #111827;
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 800;
             letter-spacing: 0.6px;
             text-transform: uppercase;
-            padding: 11px 10px;
+            padding: 12px 12px;
             border-top: 2px solid #869FA8;
             border-bottom: 2px solid #869FA8;
             text-align: left;
@@ -1698,9 +1706,9 @@
         }
 
         .plan-rx-table td {
-            padding: 10px 10px;
+            padding: 12px 12px;
             border-bottom: 1px solid #F3F4F6;
-            vertical-align: top;
+            vertical-align: middle;
             color: #111827;
         }
 
@@ -1710,26 +1718,27 @@
 
         .plan-input-inline {
             width: 100%;
-            border: 1px solid transparent;
-            background: transparent;
-            padding: 4px 6px;
+            border: 1.5px solid #E2E8F0;
+            background: #FFFFFF;
+            padding: 7px 10px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
             color: #111827;
             transition: all 0.2s;
+            box-sizing: border-box;
         }
 
         .plan-input-inline:hover {
-            background: #F9FAFB;
-            border-color: #E5E7EB;
+            background: #F8FAFC;
+            border-color: #CBD5E1;
         }
 
         .plan-input-inline:focus {
             background: #FFFFFF;
             border-color: #869FA8;
             outline: none;
-            box-shadow: 0 0 0 2px rgba(13, 92, 58, 0.15);
+            box-shadow: 0 0 0 2px rgba(134, 159, 168, 0.25);
         }
 
         .plan-titration-input {
