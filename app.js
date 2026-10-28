@@ -3084,34 +3084,8 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
         });
 
         sortedWeeks.forEach(([wName, wItems]) => {
-            if (wItems.length >= 2) {
-                const item1 = wItems[0];
-                const item2 = wItems[1];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                xml += `
-                <w:tr>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr>
-                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(wName)}</w:t></w:r></w:p>
-                  </w:tc>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
-                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
-                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                  </w:tc>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
-                    <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr><w:t>+</w:t></w:r></w:p>
-                  </w:tc>
-                  <w:tc>
-                    <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
-                    <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item2.urunAdi + d2)}</w:t></w:r></w:p>
-                    <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item2.marka || 'IV Therapy')}</w:t></w:r></w:p>
-                  </w:tc>
-                </w:tr>
-                `;
-            } else {
+            const totalItems = wItems.length;
+            if (totalItems === 1) {
                 const item1 = wItems[0];
                 const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
                 xml += `
@@ -3127,6 +3101,56 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                   </w:tc>
                 </w:tr>
                 `;
+            } else {
+                for (let i = 0; i < totalItems; i += 2) {
+                    const isFirstChunk = (i === 0);
+                    const hasTwoInChunk = (i + 1 < totalItems);
+                    const item1 = wItems[i];
+                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                    const vMergeXml = isFirstChunk ? '<w:vMerge w:val="restart"/>' : '<w:vMerge/>';
+
+                    if (hasTwoInChunk) {
+                        const item2 = wItems[i + 1];
+                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                        xml += `
+                        <w:tr>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="2200" w:type="dxa"/>${vMergeXml}</w:tcPr>
+                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${isFirstChunk ? escapeDocXml(wName) : ''}</w:t></w:r></w:p>
+                          </w:tc>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
+                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
+                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                          </w:tc>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
+                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="24"/><w:color w:val="111827"/></w:rPr><w:t>+</w:t></w:r></w:p>
+                          </w:tc>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="3200" w:type="dxa"/></w:tcPr>
+                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item2.urunAdi + d2)}</w:t></w:r></w:p>
+                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item2.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                          </w:tc>
+                        </w:tr>
+                        `;
+                    } else {
+                        // Single item left in chunk (e.g. 3rd item in a 3-item week)
+                        xml += `
+                        <w:tr>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="2200" w:type="dxa"/>${vMergeXml}</w:tcPr>
+                            <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr><w:t>${isFirstChunk ? escapeDocXml(wName) : ''}</w:t></w:r></w:p>
+                          </w:tc>
+                          <w:tc>
+                            <w:tcPr><w:tcW w:w="6984" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr>
+                            <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr><w:t>+  </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr><w:t>${escapeDocXml(item1.urunAdi + d1)}</w:t></w:r></w:p>
+                            <w:p><w:pPr><w:spacing w:before="20" w:after="100"/><w:ind w:left="320"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr><w:t>${escapeDocXml(item1.marka || 'IV Therapy')}</w:t></w:r></w:p>
+                          </w:tc>
+                        </w:tr>
+                        `;
+                    }
+                }
             }
         });
 
@@ -3607,26 +3631,8 @@ async function downloadPrescriptionWord() {
 
         let ivRows = '';
         sortedWeeks.forEach(([wName, wItems]) => {
-            if (wItems.length >= 2) {
-                const item1 = wItems[0];
-                const item2 = wItems[1];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                ivRows += `
-                    <tr style="border-bottom: 1pt solid #E5E7EB;">
-                        <td style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
-                        <td style="padding: 10pt 8pt; width: 35%;">
-                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                        </td>
-                        <td style="padding: 10pt 4pt; font-weight: bold; font-size: 13pt; color: #111827; text-align: center; width: 8%;">+</td>
-                        <td style="padding: 10pt 8pt; width: 35%;">
-                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
-                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
-                        </td>
-                    </tr>
-                `;
-            } else {
+            const totalItems = wItems.length;
+            if (totalItems === 1) {
                 const item1 = wItems[0];
                 const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
                 ivRows += `
@@ -3638,6 +3644,48 @@ async function downloadPrescriptionWord() {
                         </td>
                     </tr>
                 `;
+            } else {
+                const totalChunks = Math.ceil(totalItems / 2);
+                for (let i = 0; i < totalItems; i += 2) {
+                    const isFirstChunk = (i === 0);
+                    const hasTwoInChunk = (i + 1 < totalItems);
+                    const item1 = wItems[i];
+                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                    
+                    if (hasTwoInChunk) {
+                        const item2 = wItems[i + 1];
+                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                        ivRows += `
+                            <tr style="border-bottom: ${i + 2 >= totalItems ? '1pt solid #E5E7EB' : 'none'};">
+                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1pt solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
+                                <td style="padding: 8pt 8pt; width: 35%;">
+                                    <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                                    <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                                </td>
+                                <td style="padding: 8pt 4pt; font-weight: bold; font-size: 13pt; color: #111827; text-align: center; width: 8%;">+</td>
+                                <td style="padding: 8pt 8pt; width: 35%;">
+                                    <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
+                                    <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        ivRows += `
+                            <tr style="border-bottom: 1pt solid #E5E7EB;">
+                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10pt 8pt; font-weight: bold; font-size: 11pt; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1pt solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
+                                <td colspan="3" style="padding: 8pt 8pt; width: 78%;">
+                                    <div style="display: flex; align-items: center; gap: 8pt;">
+                                        <span style="font-weight: bold; font-size: 13pt; color: #869FA8;">+</span>
+                                        <div>
+                                            <div style="font-weight: bold; font-size: 10.5pt; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                                            <div style="font-size: 8.5pt; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
             }
         });
 
@@ -4065,26 +4113,8 @@ function printPrescription() {
 
         let ivRows = '';
         sortedWeeks.forEach(([wName, wItems]) => {
-            if (wItems.length >= 2) {
-                const item1 = wItems[0];
-                const item2 = wItems[1];
-                const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
-                const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
-                ivRows += `
-                    <tr style="border-bottom: 1px solid #E5E7EB;">
-                        <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%;">${escapeXml(wName)}</td>
-                        <td style="padding: 10px 8px; width: 35%;">
-                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
-                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
-                        </td>
-                        <td style="padding: 10px 4px; font-weight: bold; font-size: 16px; color: #111827; text-align: center; width: 8%;">+</td>
-                        <td style="padding: 10px 8px; width: 35%;">
-                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
-                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
-                        </td>
-                    </tr>
-                `;
-            } else {
+            const totalItems = wItems.length;
+            if (totalItems === 1) {
                 const item1 = wItems[0];
                 const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
                 ivRows += `
@@ -4096,6 +4126,48 @@ function printPrescription() {
                         </td>
                     </tr>
                 `;
+            } else {
+                const totalChunks = Math.ceil(totalItems / 2);
+                for (let i = 0; i < totalItems; i += 2) {
+                    const isFirstChunk = (i === 0);
+                    const hasTwoInChunk = (i + 1 < totalItems);
+                    const item1 = wItems[i];
+                    const d1 = item1.doz ? ' (' + item1.doz + ')' : '';
+                    
+                    if (hasTwoInChunk) {
+                        const item2 = wItems[i + 1];
+                        const d2 = item2.doz ? ' (' + item2.doz + ')' : '';
+                        ivRows += `
+                            <tr style="border-bottom: ${i + 2 >= totalItems ? '1px solid #E5E7EB' : 'none'};">
+                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1px solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
+                                <td style="padding: 8px 8px; width: 35%;">
+                                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                                    <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                                </td>
+                                <td style="padding: 8px 4px; font-weight: bold; font-size: 16px; color: #111827; text-align: center; width: 8%;">+</td>
+                                <td style="padding: 8px 8px; width: 35%;">
+                                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item2.urunAdi + d2)}</div>
+                                    <div style="font-size: 11px; color: #6B7280;">${escapeXml(item2.marka || 'IV Therapy')}</div>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        ivRows += `
+                            <tr style="border-bottom: 1px solid #E5E7EB;">
+                                ${isFirstChunk ? `<td rowspan="${totalChunks}" style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 22%; vertical-align: middle; border-bottom: 1px solid #E5E7EB;">${escapeXml(wName)}</td>` : ''}
+                                <td colspan="3" style="padding: 8px 8px; width: 78%;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-weight: bold; font-size: 16px; color: #869FA8;">+</span>
+                                        <div>
+                                            <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(item1.urunAdi + d1)}</div>
+                                            <div style="font-size: 11px; color: #6B7280;">${escapeXml(item1.marka || 'IV Therapy')}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
             }
         });
 
