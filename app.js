@@ -1173,7 +1173,7 @@ function renderProductsTable(products, isIncremental = false) {
 
     let html = '';
     visibleProducts.forEach(p => {
-        const isInRx = prescriptionList.some(r => r.id === p.id);
+        const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
@@ -1262,7 +1262,7 @@ function renderProductsGrid(products, isIncremental = false) {
 
     let html = '';
     visibleProducts.forEach(p => {
-        const isInRx = prescriptionList.some(r => r.id === p.id);
+        const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
@@ -1423,7 +1423,7 @@ function openDetailModal(id) {
         if (productImg) productImg.src = '';
     }
 
-    const isInRx = prescriptionList.some(r => r.id === p.id);
+    const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
     const modalBtn = document.getElementById('modalBtnAddRx');
     if (modalBtn) {
         modalBtn.textContent = isInRx ? '✓ Protokolden Çıkar' : '+ Reçete Protokolüne Ekle';
@@ -1442,7 +1442,7 @@ function closeDetailModal(e) {
 function addModalProductToRx() {
     if (!activeModalProduct) return;
     togglePrescriptionItem(activeModalProduct.id);
-    const isInRx = prescriptionList.some(r => r.id === activeModalProduct.id);
+    const isInRx = prescriptionList.some(r => (r.productId === activeModalProduct.id || r.id === activeModalProduct.id));
     const modalBtn = document.getElementById('modalBtnAddRx');
     if (modalBtn) {
         modalBtn.textContent = isInRx ? '✓ Protokolden Çıkar' : '+ Reçete Protokolüne Ekle';
@@ -3375,7 +3375,7 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
           </w:r>
         </w:p>
 
-        <w:tbl>
+                <w:tbl>
           <w:tblPr>
             <w:tblW w:w="9184" w:type="dxa"/>
             <w:tblBorders>
@@ -3389,6 +3389,10 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
               <w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>
             </w:tblCellMar>
           </w:tblPr>
+          <w:tblGrid>
+            <w:gridCol w:w="2000"/>
+            <w:gridCol w:w="7184"/>
+          </w:tblGrid>
           <w:tr>
             <w:trPr><w:tblHeader/></w:trPr>
             <w:tc>
@@ -3418,48 +3422,69 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 
         sortedWeeks.forEach(([wName, wItems]) => {
             const total = wItems.length;
-            let cellsXml = '';
-
-            // Week cell (width 2000)
-            cellsXml += `
-            <w:tc>
-              <w:tcPr>
-                <w:tcW w:w="2000" w:type="dxa"/>
-                <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
-              </w:tcPr>
-              <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
-                <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
-                  <w:t>${escapeDocXml(wName)}</w:t>
-                </w:r>
-              </w:p>
-            </w:tc>
+            xml += `
+            <w:tr>
+              <w:tc>
+                <w:tcPr>
+                  <w:tcW w:w="2000" w:type="dxa"/>
+                  <w:vAlign w:val="center"/>
+                  <w:shd w:val="clear" w:color="auto" w:fill="FFFFFF"/>
+                </w:tcPr>
+                <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="111827"/></w:rPr>
+                    <w:t>${escapeDocXml(wName)}</w:t>
+                  </w:r>
+                </w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr>
+                  <w:tcW w:w="7184" w:type="dxa"/>
+                  <w:vAlign w:val="center"/>
+                </w:tcPr>
             `;
 
             if (total === 1) {
                 const it = wItems[0];
                 const d = it.doz ? (' (' + it.doz + ')') : '';
-                cellsXml += `
-                <w:tc>
-                  <w:tcPr><w:tcW w:w="7184" w:type="dxa"/></w:tcPr>
-                  <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
-                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr>
-                      <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
-                    </w:r>
-                  </w:p>
-                  <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
-                    <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr>
-                      <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
-                    </w:r>
-                  </w:p>
-                </w:tc>
+                xml += `
+                <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="20"/><w:color w:val="111827"/></w:rPr>
+                    <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
+                  </w:r>
+                </w:p>
+                <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                  <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="16"/><w:color w:val="6B7280"/></w:rPr>
+                    <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
+                  </w:r>
+                </w:p>
                 `;
             } else if (total === 2) {
+                xml += `
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="7184" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/>
+                      <w:insideH w:val="none"/><w:insideV w:val="none"/>
+                    </w:tblBorders>
+                    <w:tblCellMar>
+                      <w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/>
+                      <w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/>
+                    </w:tblCellMar>
+                  </w:tblPr>
+                  <w:tblGrid>
+                    <w:gridCol w:w="3300"/>
+                    <w:gridCol w:w="584"/>
+                    <w:gridCol w:w="3300"/>
+                  </w:tblGrid>
+                  <w:tr>
+                `;
                 wItems.forEach((it, i) => {
                     if (i > 0) {
-                        cellsXml += `
+                        xml += `
                         <w:tc>
-                          <w:tcPr><w:tcW w:w="584" w:type="dxa"/></w:tcPr>
-                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                          <w:tcPr><w:tcW w:w="584" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr>
                             <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr>
                               <w:t>+</w:t>
                             </w:r>
@@ -3468,15 +3493,15 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                         `;
                     }
                     const d = it.doz ? (' (' + it.doz + ')') : '';
-                    cellsXml += `
+                    xml += `
                     <w:tc>
-                      <w:tcPr><w:tcW w:w="3300" w:type="dxa"/></w:tcPr>
-                      <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                      <w:tcPr><w:tcW w:w="3300" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+                      <w:p><w:pPr><w:spacing w:before="60" w:after="0"/></w:pPr>
                         <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="19"/><w:color w:val="111827"/></w:rPr>
                           <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
                         </w:r>
                       </w:p>
-                      <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                      <w:p><w:pPr><w:spacing w:before="20" w:after="60"/></w:pPr>
                         <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="15"/><w:color w:val="6B7280"/></w:rPr>
                           <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
                         </w:r>
@@ -3484,17 +3509,44 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                     </w:tc>
                     `;
                 });
+                xml += `
+                  </w:tr>
+                </w:tbl>
+                <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:sz w:val="2"/></w:pPr></w:p>
+                `;
             } else {
-                // 3 or more items side-by-side
                 const plusW = 442;
                 const totalPlusW = (total - 1) * plusW;
                 const itemW = Math.floor((7184 - totalPlusW) / total);
+                let gridCols = '';
+                for (let i = 0; i < total; i++) {
+                    if (i > 0) gridCols += `<w:gridCol w:w="${plusW}"/>`;
+                    gridCols += `<w:gridCol w:w="${itemW}"/>`;
+                }
+                xml += `
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="7184" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/>
+                      <w:insideH w:val="none"/><w:insideV w:val="none"/>
+                    </w:tblBorders>
+                    <w:tblCellMar>
+                      <w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/>
+                      <w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/>
+                    </w:tblCellMar>
+                  </w:tblPr>
+                  <w:tblGrid>
+                    ${gridCols}
+                  </w:tblGrid>
+                  <w:tr>
+                `;
                 wItems.forEach((it, i) => {
                     if (i > 0) {
-                        cellsXml += `
+                        xml += `
                         <w:tc>
-                          <w:tcPr><w:tcW w:w="${plusW}" w:type="dxa"/></w:tcPr>
-                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="120"/></w:pPr>
+                          <w:tcPr><w:tcW w:w="${plusW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+                          <w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="60" w:after="60"/></w:pPr>
                             <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="22"/><w:color w:val="869FA8"/></w:rPr>
                               <w:t>+</w:t>
                             </w:r>
@@ -3503,15 +3555,15 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                         `;
                     }
                     const d = it.doz ? (' (' + it.doz + ')') : '';
-                    cellsXml += `
+                    xml += `
                     <w:tc>
-                      <w:tcPr><w:tcW w:w="${itemW}" w:type="dxa"/></w:tcPr>
-                      <w:p><w:pPr><w:spacing w:before="100" w:after="0"/></w:pPr>
+                      <w:tcPr><w:tcW w:w="${itemW}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+                      <w:p><w:pPr><w:spacing w:before="60" w:after="0"/></w:pPr>
                         <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:b/><w:sz w:val="18"/><w:color w:val="111827"/></w:rPr>
                           <w:t>${escapeDocXml(it.urunAdi + d)}</w:t>
                         </w:r>
                       </w:p>
-                      <w:p><w:pPr><w:spacing w:before="20" w:after="100"/></w:pPr>
+                      <w:p><w:pPr><w:spacing w:before="20" w:after="60"/></w:pPr>
                         <w:r><w:rPr><w:rFonts w:ascii="Poppins" w:hAnsi="Poppins"/><w:sz w:val="14"/><w:color w:val="6B7280"/></w:rPr>
                           <w:t>${escapeDocXml(it.marka || 'IV Therapy')}</w:t>
                         </w:r>
@@ -3519,9 +3571,17 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
                     </w:tc>
                     `;
                 });
+                xml += `
+                  </w:tr>
+                </w:tbl>
+                <w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:sz w:val="2"/></w:pPr></w:p>
+                `;
             }
 
-            xml += `<w:tr>${cellsXml}</w:tr>`;
+            xml += `
+              </w:tc>
+            </w:tr>
+            `;
         });
 
         xml += `</w:tbl>`;
@@ -4002,18 +4062,30 @@ async function downloadPrescriptionWord() {
         let ivRows = '';
         sortedWeeks.forEach(([wName, wItems]) => {
             let itemsColsHtml = '';
+            const totalCols = wItems.length;
+            let itemPercent = '100%';
+            let plusPercent = '5%';
+            if (totalCols === 2) {
+                itemPercent = '46%';
+                plusPercent = '8%';
+            } else if (totalCols >= 3) {
+                const plusTotal = (totalCols - 1) * 4;
+                itemPercent = Math.floor((100 - plusTotal) / totalCols) + '%';
+                plusPercent = '4%';
+            }
+
             wItems.forEach((it, i) => {
                 if (i > 0) {
                     itemsColsHtml += `
-                    <td style="padding: 6px 4px; font-weight: bold; font-size: 18px; color: #869FA8; text-align: center; width: 4%; vertical-align: middle;">
+                    <td style="padding: 6px 2px; font-weight: bold; font-size: 16px; color: #869FA8; text-align: center; width: ${plusPercent}; vertical-align: middle;">
                         +
                     </td>
                     `;
                 }
                 const d = it.doz ? (' (' + it.doz + ')') : '';
                 itemsColsHtml += `
-                <td style="padding: 8px 6px; text-align: left; vertical-align: middle;">
-                    <div style="font-weight: bold; font-size: 13px; color: #111827;">${escapeXml(it.urunAdi + d)}</div>
+                <td style="padding: 6px 4px; text-align: left; vertical-align: middle; width: ${itemPercent};">
+                    <div style="font-weight: bold; font-size: 12.5px; color: #111827; line-height: 1.3;">${escapeXml(it.urunAdi + d)}</div>
                     <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(it.marka || 'IV Therapy')}</div>
                 </td>
                 `;
@@ -4024,8 +4096,8 @@ async function downloadPrescriptionWord() {
                     <td style="padding: 10px 8px; font-weight: bold; font-size: 13px; color: #111827; text-align: center; width: 20%; vertical-align: middle;">
                         ${escapeXml(wName)}
                     </td>
-                    <td style="padding: 0; width: 80%; vertical-align: middle;">
-                        <table style="width: 100%; border-collapse: collapse; border: none;">
+                    <td style="padding: 4px 6px; width: 80%; vertical-align: middle;">
+                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none;">
                             <tr>
                                 ${itemsColsHtml}
                             </tr>
@@ -4034,7 +4106,6 @@ async function downloadPrescriptionWord() {
                 </tr>
             `;
         });
-
         ivSectionHtml = `
             <div style="font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: bold; color: #111827; margin: 18px 0 8px 0;">IV PROTOKOLÜ</div>
             <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
