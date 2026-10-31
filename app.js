@@ -3978,52 +3978,54 @@ function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
 }
 
 
-async function downloadPrescriptionWord() {
-    if (prescriptionList.length === 0) {
-        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
-        return;
+function getPrescriptionDocTitle() {
+    const hasIV = prescriptionList.some(isIVProduct);
+    const hasMed = prescriptionList.some(isMedicationProduct);
+    const hasSupp = prescriptionList.some(it => !isIVProduct(it) && !isMedicationProduct(it));
+
+    if (hasIV && hasMed && hasSupp) {
+        return 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
+    } else if (hasIV && hasMed) {
+        return 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
+    } else if (hasIV && hasSupp) {
+        return 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
+    } else if (hasMed && hasSupp) {
+        return 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
+    } else if (hasMed) {
+        return 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
+    } else if (hasSupp) {
+        return 'Takviye Kullanım Protokolü';
+    } else if (hasIV) {
+        return 'LONGEVITY IV PROTOKOLÜ';
+    } else {
+        return 'Takviye Kullanım Protokolü';
+    }
+}
+
+function buildPrescriptionFileName(danisan, docTitle, tarih, ext = 'docx') {
+    let safeDanisan = (danisan || '').trim();
+    ['\\', '/', ':', '*', '?', '"', '<', '>', '|'].forEach(ch => {
+        safeDanisan = safeDanisan.split(ch).join('');
+    });
+    if (!safeDanisan) safeDanisan = 'Danışan';
+
+    let safeTitle = (docTitle || 'Klinik Protokol').trim();
+    ['\\', '/', ':', '*', '?', '"', '<', '>', '|'].forEach(ch => {
+        safeTitle = safeTitle.split(ch).join('');
+    });
+
+    let safeTarih = (tarih || '').trim();
+    ['\\', '/', ':', '*', '?', '"', '<', '>', '|'].forEach(ch => {
+        safeTarih = safeTarih.split(ch).join('.');
+    });
+    if (!safeTarih) {
+        safeTarih = new Date().toLocaleDateString('tr-TR').split('/').join('.');
     }
 
-    const danisan = (rxMetadata.kime || '').trim();
-    const tarih = rxMetadata.tarih || new Date().toLocaleDateString('tr-TR');
-    const kontrol = rxMetadata.kontrol || calculateDefaultControlDate();
-    const danisanSlug = danisan ? danisan.replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_]/g, '_') : 'Danisan';
-    const tarihSlug = (tarih || '').replace(/\./g, '_');
+    return `${safeDanisan} - ${safeTitle} - ${safeTarih}.${ext}`;
+}
 
-    // 1. Primary Mode: True .docx document using official LaraHealth template
-    if (typeof JSZip !== 'undefined' && typeof DOCX_TEMPLATE_B64 !== 'undefined' && DOCX_TEMPLATE_B64) {
-        try {
-            const zip = new JSZip();
-            await zip.loadAsync(DOCX_TEMPLATE_B64, { base64: true });
-            const origDocXml = await zip.file('word/document.xml').async('string');
-            const sectIdx = origDocXml.indexOf('<w:sectPr');
-            if (sectIdx !== -1) {
-                const bodyStart = origDocXml.indexOf('<w:body>') + 8;
-                const fullBodyXml = buildPrescriptionOpenXml(danisan, tarih, kontrol, '', prescriptionList);
-                const newDocXml = origDocXml.substring(0, bodyStart) + fullBodyXml + origDocXml.substring(sectIdx);
-                zip.file('word/document.xml', newDocXml);
-
-                const blob = await zip.generateAsync({
-                    type: 'blob',
-                    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                });
-
-                const filename = `LaraHealth_Klinik_Protokolu_${danisanSlug}_${tarihSlug}.docx`;
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-                return;
-            }
-        } catch (docxErr) {
-            console.warn('DOCX template export failed, switching to HTML .doc fallback:', docxErr);
-        }
-    }
-
-    // 2. Fallback Mode: HTML-based .doc format
+function generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol) {
     const ivItems = prescriptionList.filter(isIVProduct);
     const medItems = prescriptionList.filter(isMedicationProduct);
     const suppItems = prescriptionList.filter(it => !isIVProduct(it) && !isMedicationProduct(it));
@@ -4031,16 +4033,6 @@ async function downloadPrescriptionWord() {
     const hasIV = ivItems.length > 0;
     const hasMed = medItems.length > 0;
     const hasSupp = suppItems.length > 0;
-
-    let docTitle = 'Takviye Kullanım Protokolü';
-    if (hasIV && hasMed && hasSupp) docTitle = 'LONGEVITY TEDAVİ, IV VE TAKVİYE PROTOKOLÜ';
-    else if (hasIV && hasMed) docTitle = 'LONGEVITY MEDİKAL TEDAVİ VE IV PROTOKOLÜ';
-    else if (hasIV && hasSupp) docTitle = 'LONGEVITY IV VE TAKVİYE PROTOKOLÜ';
-    else if (hasMed && hasSupp) docTitle = 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
-    else if (hasMed) docTitle = 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
-    else if (hasSupp) docTitle = 'Takviye Kullanım Protokolü';
-    else if (hasIV) docTitle = 'LONGEVITY IV PROTOKOLÜ';
-
     const effectiveMode = getEffectiveHekimMode();
 
     let ivSectionHtml = '';
@@ -4182,16 +4174,14 @@ async function downloadPrescriptionWord() {
         const tableSuppItems = consolidateRxItemsForTable(suppItems);
         tableSuppItems.forEach((item, idx) => {
             const num = idx + 1;
-            const titrationNote = item.not 
-                ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` 
-                : '';
+            const noteHtml = item.not ? `<div style="font-size: 11px; color: #869FA8; font-weight: 600; margin-top: 3px;">${escapeXml(item.not)}</div>` : '';
             rowsHtml += `
                 <tr style="border-bottom: 1px solid #E5E7EB;">
-                    <td style="padding: 10px 8px; font-size: 12px; color: #4B5563; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
+                    <td style="padding: 10px 8px; font-size: 12px; color: #869FA8; font-weight: bold; text-align: center; vertical-align: top; width: 4%;">${num}</td>
                     <td style="padding: 10px 8px; vertical-align: top; width: 34%;">
                         <div style="font-size: 13px; font-weight: bold; color: #111827;">${escapeXml(item.urunAdi)}</div>
-                        <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(item.marka)}</div>
-                        ${titrationNote}
+                        <div style="font-size: 11px; color: #6B7280; margin-top: 1px;">${escapeXml(item.marka || 'LaraHealth')}</div>
+                        ${noteHtml}
                     </td>
                     <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 12%; font-weight: 600;">${escapeXml(item.doz || '-')}</td>
                     <td style="padding: 10px 8px; font-size: 12px; color: #111827; vertical-align: top; width: 14%;">${escapeXml(item.siklik || '-')}</td>
@@ -4203,7 +4193,7 @@ async function downloadPrescriptionWord() {
         });
 
         suppSectionHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Destekleyici Takviye Listesi</div>
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 14px 0 8px 0;">Klinik Takviye Protokolü</div>
             <table class="plan-table" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                 <thead>
                     <tr>
@@ -4225,21 +4215,65 @@ async function downloadPrescriptionWord() {
 
     let schedulePrintHtml = '';
     if (hasMed || hasSupp) {
+        const slots = [
+            { key: 'sabah', title: 'SABAH' },
+            { key: 'ogle', title: 'ÖĞLE' },
+            { key: 'aksam', title: 'AKŞAM' },
+            { key: 'gece', title: 'GECE (YATMADAN)' }
+        ];
+
+        let cardsHtml = '';
+        slots.forEach(slot => {
+            const slotItems = prescriptionList.filter(it => !isIVProduct(it) && isItemInSlot(it, slot.key));
+            let itemsHtml = '';
+            if (slotItems.length === 0) {
+                itemsHtml = `<div style="font-size: 11px; color: #9CA3AF; font-style: italic; padding: 6px 0;">Planlanan takviye yok</div>`;
+            } else {
+                slotItems.forEach(it => {
+                    const isMed = isMedicationProduct(it);
+                    const tagHtml = isMed 
+                        ? `<span style="font-size: 9px; font-weight: 800; background: #EFF6FF; color: #1E3A8A; border: 1px solid #BFDBFE; padding: 1px 4px; border-radius: 3px; margin-right: 4px;">İLAÇ</span>` 
+                        : '';
+                    const singleDose = formatScheduleSingleDose(it.doz, isMed);
+                    const metaStr = [singleDose, it.kullanim].filter(Boolean).join(' • ');
+                    itemsHtml += `
+                        <div style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed #E5E7EB;">
+                            <div style="font-size: 12px; font-weight: bold; color: #111827; line-height: 1.3;">
+                                ${tagHtml}${escapeXml(it.urunAdi)}
+                            </div>
+                            <div style="font-size: 10.5px; color: #4B5563; margin-top: 2px;">
+                                ${escapeXml(metaStr)}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            cardsHtml += `
+                <div class="schedule-card">
+                    <div class="schedule-card-header">${slot.title}</div>
+                    ${itemsHtml}
+                </div>
+            `;
+        });
+
         schedulePrintHtml = `
-            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin-bottom: 12px;">Günlük Kullanım Çizelgesi</div>
-            ${buildDailyScheduleHtml(prescriptionList)}
+            <div style="font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: bold; color: #111827; margin: 18px 0 10px 0;">Kullanım Çizelgesi</div>
+            <div class="schedule-grid">
+                ${cardsHtml}
+            </div>
         `;
     }
 
     let signaturePrintHtml = '';
     if (effectiveMode === 'dual') {
         signaturePrintHtml = `
-            <div style="display: flex; justify-content: space-between; gap: 40px; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-                <div style="text-align: center; flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-top: 36px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <div style="text-align: center; min-width: 250px;">
                     <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Prof. Dr. Arda Lembet</div>
                     <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Kadın Hastalıkları, Doğum ve Perinatoloji Uzmanı</div>
                 </div>
-                <div style="text-align: center; flex: 1;">
+                <div style="text-align: center; min-width: 250px;">
                     <div style="font-size: 16px; font-weight: bold; color: #111827; font-family: 'Poppins', Georgia, serif;">Diyetisyen Betül Çetin</div>
                     <div style="font-size: 12px; font-weight: bold; color: #869FA8; margin-top: 2px;">Longevity ve Bütüncül Sağlık Danışmanı</div>
                 </div>
@@ -4267,10 +4301,11 @@ async function downloadPrescriptionWord() {
 
     const danisanDisplay = danisan || '................................................';
 
-    printWindow.document.write(`
+    return `
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8">
             <title>${escapeXml(docTitle)} • LaraHealth</title>
             <style>
                 body { font-family: 'Poppins', 'Segoe UI', Arial, sans-serif; padding: 28px; color: #111827; }
@@ -4315,10 +4350,96 @@ async function downloadPrescriptionWord() {
             ${signaturePrintHtml}
         </body>
         </html>
-    `);
+    `;
+}
+
+async function downloadPrescriptionWord() {
+    if (prescriptionList.length === 0) {
+        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
+        return;
+    }
+
+    const danisan = (rxMetadata.kime || '').trim();
+    const docTitle = getPrescriptionDocTitle();
+    const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
+    const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+
+    // 1. Primary Mode: True .docx document using official LaraHealth template
+    if (typeof JSZip !== 'undefined' && typeof DOCX_TEMPLATE_B64 !== 'undefined' && DOCX_TEMPLATE_B64) {
+        try {
+            const zip = new JSZip();
+            await zip.loadAsync(DOCX_TEMPLATE_B64, { base64: true });
+            const origDocXml = await zip.file('word/document.xml').async('string');
+            const sectIdx = origDocXml.indexOf('<w:sectPr');
+            if (sectIdx !== -1) {
+                const prefix = origDocXml.substring(0, sectIdx);
+                const suffix = origDocXml.substring(sectIdx);
+                const generatedContent = buildPrescriptionOpenXml(prescriptionList);
+                const newDocXml = prefix + generatedContent + suffix;
+                zip.file('word/document.xml', newDocXml);
+
+                const blob = await zip.generateAsync({
+                    type: 'blob',
+                    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                });
+
+                const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'docx');
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+                return;
+            }
+        } catch (docxErr) {
+            console.warn('DOCX template export failed, switching to HTML .doc fallback:', docxErr);
+        }
+    }
+
+    // 2. Fallback Mode: HTML-based .doc format
+    try {
+        const html = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
+        const fallbackFilename = buildPrescriptionFileName(danisan, docTitle, tarih, 'doc');
+        const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fallbackFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    } catch (fallbackErr) {
+        console.error('Word export fallback failed:', fallbackErr);
+        alert('Belge indirilirken bir hata oluştu. Lütfen "Yazdır" seçeneğini deneyiniz.');
+    }
+}
+
+function printPrescription() {
+    if (prescriptionList.length === 0) {
+        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
+        return;
+    }
+
+    const danisan = (rxMetadata.kime || '').trim();
+    const docTitle = getPrescriptionDocTitle();
+    const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
+    const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+
+    const html = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert('Yazdırma penceresi açılamadı. Lütfen tarayıcı açılır pencere (pop-up) engelleyicisini kontrol ediniz.');
+        return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 250);
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 600);
 }
 
 
