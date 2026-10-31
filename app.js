@@ -1173,7 +1173,7 @@ function renderProductsTable(products, isIncremental = false) {
 
     let html = '';
     visibleProducts.forEach(p => {
-        const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
+        const isInRx = isProductInRx(p);
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
@@ -1218,7 +1218,7 @@ function renderProductsTable(products, isIncremental = false) {
                     <span class="table-origin-badge origin-${(p.mensei || 'TR').toLowerCase()}">${p.mensei || 'TR'}</span>
                 </td>
                 <td style="width: 110px; text-align: right;" onclick="event.stopPropagation();">
-                    <button class="table-btn-rx ${isInRx ? 'active added' : ''}" onclick="togglePrescriptionItem(${p.id})" title="${isInRx ? 'Bu takviyeyi reçeteden çıkar' : 'Reçeteye ekle'}">
+                    <button class="table-btn-rx ${isInRx ? 'active added' : ''}" onclick="event.stopPropagation(); togglePrescriptionItem(${p.id});" title="${isInRx ? 'Bu takviyeyi reçeteden çıkar' : 'Reçeteye ekle'}">
                         ${isInRx ? '✓ Çıkar' : '+ Ekle'}
                     </button>
                 </td>
@@ -1262,7 +1262,7 @@ function renderProductsGrid(products, isIncremental = false) {
 
     let html = '';
     visibleProducts.forEach(p => {
-        const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
+        const isInRx = isProductInRx(p);
         const highlightedTitle = highlightMatch(p.urunAdi, searchQuery1, searchQuery2);
         const highlightedBrand = highlightMatch(p.marka || 'LARAHEALTH', searchQuery1, searchQuery2);
         const highlightedIndication = highlightMatch(p.endikasyon || 'Klinik endikasyon bilgisi mevcut değil.', searchQuery1, searchQuery2);
@@ -1301,8 +1301,8 @@ function renderProductsGrid(products, isIncremental = false) {
                     ${dosageHtml}
                     <div class="card-indication">${highlightedIndication}</div>
                     <div class="card-footer">
-                        <button class="card-btn-rx ${isInRx ? 'active' : ''}" onclick="event.stopPropagation(); togglePrescriptionItem(${p.id});">
-                            ${isInRx ? '✓ Plandan Çıkar' : '+ Plana Ekle'}
+                        <button class="card-btn-rx ${isInRx ? 'active added' : ''}" onclick="event.stopPropagation(); togglePrescriptionItem(${p.id});" title="${isInRx ? 'Bu takviyeyi reçeteden çıkar' : 'Reçeteye ekle'}">
+                            ${isInRx ? '✓ Çıkar' : '+ Ekle'}
                         </button>
                     </div>
                 </div>
@@ -1423,10 +1423,11 @@ function openDetailModal(id) {
         if (productImg) productImg.src = '';
     }
 
-    const isInRx = prescriptionList.some(r => (r.productId === p.id || r.id === p.id));
+    const isInRx = isProductInRx(p);
     const modalBtn = document.getElementById('modalBtnAddRx');
     if (modalBtn) {
-        modalBtn.textContent = isInRx ? '✓ Protokolden Çıkar' : '+ Reçete Protokolüne Ekle';
+        modalBtn.textContent = isInRx ? '✓ Çıkar' : '+ Ekle';
+        modalBtn.className = isInRx ? 'btn-modal-rx active added' : 'btn-modal-rx';
     }
 
     document.getElementById('detailModalOverlay').style.display = 'flex';
@@ -1445,7 +1446,8 @@ function addModalProductToRx() {
     const isInRx = prescriptionList.some(r => (r.productId === activeModalProduct.id || r.id === activeModalProduct.id));
     const modalBtn = document.getElementById('modalBtnAddRx');
     if (modalBtn) {
-        modalBtn.textContent = isInRx ? '✓ Protokolden Çıkar' : '+ Reçete Protokolüne Ekle';
+        modalBtn.textContent = isInRx ? '✓ Çıkar' : '+ Ekle';
+        modalBtn.className = isInRx ? 'btn-modal-rx active added' : 'btn-modal-rx';
     }
 }
 
@@ -1602,8 +1604,29 @@ function addCustomRxItem() {
     }, 3500);
 }
 
+function isProductInRx(p) {
+    if (!p) return false;
+    const pId = String(p.id || p.productId || '');
+    const pName = (p.urunAdi || '').trim().toLowerCase();
+    return prescriptionList.some(r => {
+        const rProdId = String(r.productId || '');
+        const rId = String(r.id || '');
+        const rName = (r.urunAdi || '').trim().toLowerCase();
+        return (pId && (rProdId === pId || rId === pId)) || (pName && rName === pName);
+    });
+}
+
 function togglePrescriptionItem(id) {
-    const existingIdx = prescriptionList.findIndex(r => (r.productId === id || r.id === id));
+    const p = ALL_PRODUCTS.find(x => String(x.id) === String(id));
+    const targetIdStr = String(id);
+    const targetName = p ? (p.urunAdi || '').trim().toLowerCase() : '';
+
+    const existingIdx = prescriptionList.findIndex(r => {
+        const rProdId = String(r.productId || '');
+        const rId = String(r.id || '');
+        const rName = (r.urunAdi || '').trim().toLowerCase();
+        return (targetIdStr && (rProdId === targetIdStr || rId === targetIdStr)) || (targetName && rName === targetName);
+    });
     if (existingIdx >= 0) {
         prescriptionList.splice(existingIdx, 1);
     } else {
@@ -3277,7 +3300,27 @@ function consolidateRxItemsForTable(items) {
     });
 }
 
-function buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, items) {
+function buildPrescriptionOpenXml(arg1, arg2, arg3, arg4, arg5) {
+    let danisan = '';
+    let tarih = '';
+    let kontrol = '';
+    let diyetisyen = '';
+    let items = [];
+
+    if (Array.isArray(arg1)) {
+        items = arg1;
+        danisan = (rxMetadata.kime || '').trim();
+        tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
+        kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+        diyetisyen = (rxMetadata.diyetisyen || 'Diyetisyen Betül Çetin').trim();
+    } else {
+        danisan = (arg1 || rxMetadata.kime || '').trim();
+        tarih = (arg2 || rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
+        kontrol = (arg3 || rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+        diyetisyen = (arg4 || rxMetadata.diyetisyen || 'Diyetisyen Betül Çetin').trim();
+        items = Array.isArray(arg5) ? arg5 : (Array.isArray(prescriptionList) ? prescriptionList : []);
+    }
+    if (!Array.isArray(items)) items = [];
     const safeDanisan = escapeDocXml(danisan || '................................................');
     const safeTarih = escapeDocXml(tarih || '');
     const safeKontrol = escapeDocXml(kontrol || '-');
@@ -3993,8 +4036,6 @@ function getPrescriptionDocTitle() {
         return 'BÜTÜNCÜL TEDAVİ VE TAKVİYE PROTOKOLÜ';
     } else if (hasMed) {
         return 'MEDİKAL TEDAVİ VE İLAÇ PROTOKOLÜ';
-    } else if (hasSupp) {
-        return 'Takviye Kullanım Protokolü';
     } else if (hasIV) {
         return 'LONGEVITY IV PROTOKOLÜ';
     } else {
@@ -4312,8 +4353,8 @@ function generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol) {
                 @media print { body { padding: 0; } }
                 .plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
                 .plan-table th { background: #F0F4F6; color: #111827; font-size: 11px; font-weight: 800; padding: 10px 8px; border-top: 2px solid #869FA8; border-bottom: 2px solid #869FA8; text-align: left; }
-                .schedule-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
-                .schedule-card { border: 1px solid #D1D5DB; border-radius: 8px; padding: 12px; background: #FFFFFF; }
+                .schedule-grid { display: flex; gap: 10px; width: 100%; margin-bottom: 28px; }
+                .schedule-card { flex: 1; border: 1px solid #D1D5DB; border-radius: 8px; padding: 12px; background: #FFFFFF; }
                 .schedule-card-header { font-size: 11px; font-weight: 800; color: #869FA8; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; }
             </style>
         </head>
@@ -4353,6 +4394,25 @@ function generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol) {
     `;
 }
 
+// DYNAMIC HTML2PDF LOADER
+async function ensureHtml2PdfLoaded() {
+    if (typeof html2pdf !== 'undefined') return true;
+    return new Promise((resolve) => {
+        const s1 = document.createElement('script');
+        s1.src = 'html2pdf.bundle.min.js';
+        s1.onload = () => resolve(true);
+        s1.onerror = () => {
+            const s2 = document.createElement('script');
+            s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            s2.onload = () => resolve(true);
+            s2.onerror = () => resolve(false);
+            document.head.appendChild(s2);
+        };
+        document.head.appendChild(s1);
+    });
+}
+
+// 1. WORD (.DOCX) İNDİRME MOTORU
 async function downloadPrescriptionWord() {
     if (prescriptionList.length === 0) {
         alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
@@ -4363,6 +4423,10 @@ async function downloadPrescriptionWord() {
     const docTitle = getPrescriptionDocTitle();
     const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
     const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+    const diyetisyen = (rxMetadata.diyetisyen || 'Diyetisyen Betül Çetin').trim();
+    const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'docx');
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
     // 1. Primary Mode: True .docx document using official LaraHealth template
     if (typeof JSZip !== 'undefined' && typeof DOCX_TEMPLATE_B64 !== 'undefined' && DOCX_TEMPLATE_B64) {
@@ -4374,7 +4438,7 @@ async function downloadPrescriptionWord() {
             if (sectIdx !== -1) {
                 const prefix = origDocXml.substring(0, sectIdx);
                 const suffix = origDocXml.substring(sectIdx);
-                const generatedContent = buildPrescriptionOpenXml(prescriptionList);
+                const generatedContent = buildPrescriptionOpenXml(danisan, tarih, kontrol, diyetisyen, prescriptionList);
                 const newDocXml = prefix + generatedContent + suffix;
                 zip.file('word/document.xml', newDocXml);
 
@@ -4383,14 +4447,37 @@ async function downloadPrescriptionWord() {
                     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 });
 
-                const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'docx');
+                // MOBILE NATIVE SHARE (iOS Safari & Android Chrome)
+                if (isMobile && navigator.canShare) {
+                    try {
+                        const file = new File([blob], filename, {
+                            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        });
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                files: [file],
+                                title: filename,
+                                text: `${docTitle} • ${danisan}`
+                            });
+                            return;
+                        }
+                    } catch (shareErr) {
+                        if (shareErr.name === 'AbortError') return;
+                    }
+                }
+
+                // Standard Anchor Download with extended revoke delay (Fix for Mobile & PC)
+                const blobUrl = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
+                link.href = blobUrl;
                 link.download = filename;
+                link.style.display = 'none';
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
+                setTimeout(() => {
+                    if (link.parentNode) link.parentNode.removeChild(link);
+                    URL.revokeObjectURL(blobUrl);
+                }, 45000);
                 return;
             }
         } catch (docxErr) {
@@ -4403,19 +4490,113 @@ async function downloadPrescriptionWord() {
         const html = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
         const fallbackFilename = buildPrescriptionFileName(danisan, docTitle, tarih, 'doc');
         const blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+
+        if (isMobile && navigator.canShare) {
+            try {
+                const file = new File([blob], fallbackFilename, { type: 'application/msword' });
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: fallbackFilename
+                    });
+                    return;
+                }
+            } catch (shareErr) {
+                if (shareErr.name === 'AbortError') return;
+            }
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        link.href = blobUrl;
         link.download = fallbackFilename;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
+        setTimeout(() => {
+            if (link.parentNode) link.parentNode.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        }, 45000);
     } catch (fallbackErr) {
         console.error('Word export fallback failed:', fallbackErr);
         alert('Belge indirilirken bir hata oluştu. Lütfen "Yazdır" seçeneğini deneyiniz.');
     }
 }
 
+// 2. DOĞRUDAN PDF İNDİRME MOTORU (.PDF)
+async function downloadPrescriptionPdf() {
+    if (prescriptionList.length === 0) {
+        alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
+        return;
+    }
+
+    const danisan = (rxMetadata.kime || '').trim();
+    const docTitle = getPrescriptionDocTitle();
+    const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
+    const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
+    const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'pdf');
+
+    // Create offscreen container with exact A4 proportion (794px width is standard 96dpi A4)
+    const printContainer = document.createElement('div');
+    printContainer.id = 'pdfRenderContainer';
+    printContainer.style.position = 'absolute';
+    printContainer.style.left = '-9999px';
+    printContainer.style.top = '0';
+    printContainer.style.width = '794px';
+    printContainer.style.background = '#FFFFFF';
+    printContainer.style.color = '#111827';
+    printContainer.style.padding = '24px 32px';
+    printContainer.style.boxSizing = 'border-box';
+    printContainer.innerHTML = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
+    document.body.appendChild(printContainer);
+
+    try {
+        const isLoaded = await ensureHtml2PdfLoaded();
+        if (isLoaded && typeof html2pdf !== 'undefined') {
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile && navigator.canShare) {
+                try {
+                    const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
+                    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: filename,
+                            text: `${docTitle} • ${danisan}`
+                        });
+                        return;
+                    }
+                } catch (shareErr) {
+                    if (shareErr.name === 'AbortError') return;
+                }
+            }
+
+            await html2pdf().set(opt).from(printContainer).save();
+        } else {
+            alert('PDF motoru hazırlanamadı. Yazdırma penceresi açılıyor; hedef olarak "PDF Olarak Kaydet" seçeneğini belirleyebilirsiniz.');
+            printPrescription();
+        }
+    } catch (pdfErr) {
+        console.error('PDF export failed:', pdfErr);
+        alert('PDF oluşturulurken bir hata oluştu. "Yazdır" seçeneği ile PDF olarak kaydedebilirsiniz.');
+        printPrescription();
+    } finally {
+        if (printContainer && printContainer.parentNode) {
+            printContainer.parentNode.removeChild(printContainer);
+        }
+    }
+}
+
+// 3. YAZDIRMA MOTORU (ZERO-POPUP IFRAME & MOBİL DESTEĞİ)
 function printPrescription() {
     if (prescriptionList.length === 0) {
         alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
@@ -4428,18 +4609,46 @@ function printPrescription() {
     const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
 
     const html = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert('Yazdırma penceresi açılamadı. Lütfen tarayıcı açılır pencere (pop-up) engelleyicisini kontrol ediniz.');
-        return;
+
+    // Hidden iframe for zero-popup printing on PC & Mobile
+    let printIframe = document.getElementById('rxHiddenPrintIframe');
+    if (printIframe) {
+        document.body.removeChild(printIframe);
     }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+
+    printIframe = document.createElement('iframe');
+    printIframe.id = 'rxHiddenPrintIframe';
+    printIframe.style.position = 'fixed';
+    printIframe.style.right = '0';
+    printIframe.style.bottom = '0';
+    printIframe.style.width = '0';
+    printIframe.style.height = '0';
+    printIframe.style.border = '0';
+    printIframe.style.visibility = 'hidden';
+    document.body.appendChild(printIframe);
+
+    const doc = printIframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
     setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-    }, 600);
+        try {
+            printIframe.contentWindow.focus();
+            printIframe.contentWindow.print();
+        } catch (e) {
+            console.warn('Iframe print error, falling back to window.open:', e);
+            const w = window.open('', '_blank');
+            if (w) {
+                w.document.open();
+                w.document.write(html);
+                w.document.close();
+                setTimeout(() => { w.focus(); w.print(); }, 500);
+            } else {
+                alert('Yazdırma penceresi açılamadı. Lütfen açılır pencere engelleyicisini kontrol ediniz veya "PDF İndir" seçeneğini kullanınız.');
+            }
+        }
+    }, 450);
 }
 
 

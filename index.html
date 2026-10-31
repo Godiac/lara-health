@@ -14,9 +14,10 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261031_12">
+    <link rel="stylesheet" href="style.css?v=20261031_14">
     <script src="crypto.min.js"></script>
     <script src="jszip.min.js"></script>
+    <script src="html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -357,14 +358,17 @@
         </div>
 
         <div class="rx-drawer-footer">
-            <button class="btn-rx-action btn-rx-word" onclick="downloadPrescriptionWord()">
-                📄 Word Olarak İndir (.docx)
+            <button class="btn-rx-action btn-rx-word" onclick="downloadPrescriptionWord()" title="Word belgesi (.docx) olarak indir">
+                <span>📄</span> <span>Word İndir (.docx)</span>
             </button>
-            <button class="btn-rx-action btn-rx-print" onclick="printPrescription()" title="Yazdır veya PDF olarak kaydet">
-                🖨️ Yazdır / PDF
+            <button class="btn-rx-action btn-rx-pdf" onclick="downloadPrescriptionPdf()" title="Doğrudan PDF belgesi (.pdf) olarak indir">
+                <span>📥</span> <span>PDF İndir (.pdf)</span>
+            </button>
+            <button class="btn-rx-action btn-rx-print" onclick="printPrescription()" title="Yazıcıdan yazdır veya tarayıcıdan kaydet">
+                <span>🖨️</span> <span>Yazdır</span>
             </button>
             <button class="btn-rx-action btn-rx-copy" onclick="copyPrescriptionText()" title="Panoya metin olarak kopyala">
-                📋 Kopyala
+                <span>📋</span> <span>Kopyala</span>
             </button>
         </div>
     </div>
@@ -373,7 +377,7 @@
     
     </div>
 
-    <script src="data.js?v=20261031_12"></script>
-    <script src="app.js?v=20261031_12"></script>
+    <script src="data.js?v=20261031_14"></script>
+    <script src="app.js?v=20261031_14"></script>
 </body>
 </html>

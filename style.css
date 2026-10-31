@@ -947,6 +947,45 @@
             color: white;
         }
 
+        
+        .card-btn-rx,
+        .btn-card-rx {
+            background: var(--gold-gradient);
+            border: 1px solid var(--border-gold);
+            color: var(--navy-primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .card-btn-rx:hover,
+        .btn-card-rx:hover {
+            filter: brightness(1.05);
+        }
+        .card-btn-rx.active,
+        .card-btn-rx.added,
+        .btn-card-rx.active,
+        .btn-card-rx.added {
+            background: #F0F4F6 !important;
+            color: #111827 !important;
+            border-color: #869FA8 !important;
+        }
+        .card-btn-rx.active:hover,
+        .card-btn-rx.added:hover,
+        .btn-card-rx.active:hover,
+        .btn-card-rx.added:hover {
+            background: #FEE2E2 !important;
+            color: #DC2626 !important;
+            border-color: #F87171 !important;
+        }
+
         /* Modal Overlays */
         .modal-overlay {
             position: fixed;
@@ -1406,6 +1445,21 @@
             gap: 8px;
             transition: all 0.15s;
         }
+        
+        .btn-rx-pdf {
+            background: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
+            color: #FFFFFF;
+            border: none;
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+            font-weight: 800;
+        }
+        .btn-rx-pdf:hover {
+            background: #0F766E;
+            color: #FFFFFF;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+        }
+
         .btn-rx-word {
             background: var(--gold-gradient);
             color: #1C1917;
@@ -2535,6 +2589,62 @@
 
     /* 10. PIN Security Gate Mobile Sizing */
     .pin-screen {
+        padding: 16px !important;
+    }
+    .pin-card {
+        width: 100% !important;
+        max-width: 330px !important;
+        padding: 24px 16px !important;
+        border-radius: 20px !important;
+    }
+    .pin-title {
+        font-size: 20px !important;
+    }
+    .pin-subtitle {
+        font-size: 12.5px !important;
+    }
+    .pin-instruction {
+        font-size: 12px !important;
+    }
+    .pin-keypad {
+        gap: 10px !important;
+        max-width: 260px !important;
+    }
+    .pin-key {
+        height: 52px !important;
+        font-size: 20px !important;
+        touch-action: manipulation !important;
+    }
+}
+
+/* Extra Small Phones (<= 480px) */
+@media (max-width: 480px) {
+    header {
+        padding: 8px 10px !important;
+    }
+    .brand-logo-img {
+        max-height: 32px !important;
+    }
+    .brand-text p {
+        display: none !important;
+    }
+    .btn-rx-open span:first-child {
+        display: none !important;
+    }
+    .btn-rx-open::before {
+        content: "📋 Reçete " !important;
+    }
+    .rx-drawer-header {
+        padding: 10px 12px !important;
+    }
+    .rx-drawer-body {
+        padding: 10px 8px !important;
+    }
+}
+    
+
+/* CLINICAL SECURITY GATE (PIN LOCK SCREEN) */
+.pin-screen {
         padding: 16px !important;
     }
     .pin-card {
