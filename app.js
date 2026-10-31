@@ -4419,6 +4419,13 @@ async function downloadPrescriptionWord() {
         return;
     }
 
+    // Visual button state feedback
+    const wordBtn = document.querySelector('.btn-rx-word');
+    if (wordBtn) {
+        wordBtn.disabled = true;
+        wordBtn.innerHTML = '<span>⏳</span> <span>Hazırlanıyor...</span>';
+    }
+
     const danisan = (rxMetadata.kime || '').trim();
     const docTitle = getPrescriptionDocTitle();
     const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
@@ -4427,6 +4434,65 @@ async function downloadPrescriptionWord() {
     const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'docx');
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    function triggerDownload(blob, finalName) {
+        // IE / Edge legacy
+        if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+            window.navigator.msSaveOrOpenBlob(blob, finalName);
+            finishDownload(finalName, null);
+            return;
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = finalName;
+        link.rel = 'noopener';
+        link.target = '_self';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+
+        try {
+            link.click();
+        } catch(e) {
+            const evt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+            link.dispatchEvent(evt);
+        }
+
+        finishDownload(finalName, blobUrl);
+
+        setTimeout(() => {
+            if (link.parentNode) link.parentNode.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        }, 60000);
+    }
+
+    function finishDownload(finalName, blobUrl) {
+        if (wordBtn) {
+            wordBtn.disabled = false;
+            wordBtn.innerHTML = '<span>📄</span> <span>Word İndir (.docx)</span>';
+        }
+
+        // Show prominent toast banner
+        let toastEl = document.getElementById('rxWordDownloadToast');
+        if (!toastEl) {
+            toastEl = document.createElement('div');
+            toastEl.id = 'rxWordDownloadToast';
+            toastEl.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#0F172A; color:#FFFFFF; padding:12px 22px; border-radius:10px; font-size:13.5px; font-weight:700; z-index:999999; box-shadow:0 10px 25px rgba(0,0,0,0.35); display:flex; align-items:center; gap:12px; border:1.5px solid #869FA8;';
+            document.body.appendChild(toastEl);
+        }
+
+        const fallbackLinkHtml = blobUrl 
+            ? `<a href="${blobUrl}" download="${finalName}" style="color:#67E8F9; text-decoration:underline; font-weight:800; margin-left:6px;">Buraya Tıklayın</a>`
+            : '';
+
+        toastEl.innerHTML = `<span>📥</span> <span>Word belgesi indirildi: <strong>${finalName}</strong></span> ${fallbackLinkHtml}`;
+        toastEl.style.display = 'flex';
+
+        setTimeout(() => {
+            if (toastEl) toastEl.style.display = 'none';
+        }, 6500);
+    }
 
     // 1. Primary Mode: True .docx document using official LaraHealth template
     if (typeof JSZip !== 'undefined' && typeof DOCX_TEMPLATE_B64 !== 'undefined' && DOCX_TEMPLATE_B64) {
@@ -4447,7 +4513,6 @@ async function downloadPrescriptionWord() {
                     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 });
 
-                // MOBILE NATIVE SHARE (iOS Safari & Android Chrome)
                 if (isMobile && navigator.canShare) {
                     try {
                         const file = new File([blob], filename, {
@@ -4459,25 +4524,18 @@ async function downloadPrescriptionWord() {
                                 title: filename,
                                 text: `${docTitle} • ${danisan}`
                             });
+                            finishDownload(filename, null);
                             return;
                         }
                     } catch (shareErr) {
-                        if (shareErr.name === 'AbortError') return;
+                        if (shareErr.name === 'AbortError') {
+                            finishDownload(filename, null);
+                            return;
+                        }
                     }
                 }
 
-                // Standard Anchor Download with extended revoke delay (Fix for Mobile & PC)
-                const blobUrl = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = filename;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                setTimeout(() => {
-                    if (link.parentNode) link.parentNode.removeChild(link);
-                    URL.revokeObjectURL(blobUrl);
-                }, 45000);
+                triggerDownload(blob, filename);
                 return;
             }
         } catch (docxErr) {
@@ -4499,31 +4557,28 @@ async function downloadPrescriptionWord() {
                         files: [file],
                         title: fallbackFilename
                     });
+                    finishDownload(fallbackFilename, null);
                     return;
                 }
             } catch (shareErr) {
-                if (shareErr.name === 'AbortError') return;
+                if (shareErr.name === 'AbortError') {
+                    finishDownload(fallbackFilename, null);
+                    return;
+                }
             }
         }
 
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fallbackFilename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-            if (link.parentNode) link.parentNode.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        }, 45000);
+        triggerDownload(blob, fallbackFilename);
     } catch (fallbackErr) {
-        console.error('Word export fallback failed:', fallbackErr);
-        alert('Belge indirilirken bir hata oluştu. Lütfen "Yazdır" seçeneğini deneyiniz.');
+        console.error('Word export fatal error:', fallbackErr);
+        if (wordBtn) {
+            wordBtn.disabled = false;
+            wordBtn.innerHTML = '<span>📄</span> <span>Word İndir (.docx)</span>';
+        }
+        alert('Word belgesi oluşturulurken bir hata oluştu: ' + fallbackErr.message);
     }
 }
 
-// 2. DOĞRUDAN PDF İNDİRME MOTORU (.PDF)
 async function downloadPrescriptionPdf() {
     if (prescriptionList.length === 0) {
         alert('Lütfen önce protokole en az bir ürün ekleyiniz.');
