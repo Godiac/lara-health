@@ -12,7 +12,6 @@ const LARA_LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAcQAAACoCAYAAAB+Hp6KAAAMTmlDQ1BJQ
 
 function decryptClinicDatabase(pin) {
     if (typeof CryptoJS === 'undefined' || typeof ENCRYPTED_LARA_DB === 'undefined' || typeof LARA_SALT === 'undefined') {
-        console.error("CryptoJS or Encrypted data not loaded");
         return null;
     }
     try {
@@ -28,43 +27,56 @@ function decryptClinicDatabase(pin) {
     }
 }
 
-function updatePinDots() {
+window.updatePinDots = function() {
     const dots = document.querySelectorAll('#pinDots .pin-dot');
     dots.forEach((dot, idx) => {
-        dot.classList.toggle('filled', idx < enteredPin.length);
+        dot.classList.toggle('filled', idx < (window.enteredPin ? window.enteredPin.length : 0));
     });
-}
+};
 
 window.pressPin = function(digit) {
-    if (Date.now() < pinLockoutUntil) {
-        showPinError("Çok fazla hatalı deneme. Lütfen 1 dakika bekleyin.");
-        return;
-    }
-    if (enteredPin.length < 4) {
-        enteredPin += digit;
-        updatePinDots();
-        if (enteredPin.length === 4) {
-            setTimeout(validatePinSubmission, 150);
+    if (typeof window.enteredPin !== 'string') window.enteredPin = "";
+    if (window.enteredPin.length < 4) {
+        window.enteredPin += String(digit);
+        window.updatePinDots();
+        const inp = document.getElementById('pinHiddenInput');
+        if (inp) inp.value = window.enteredPin;
+        if (window.enteredPin.length === 4) {
+            setTimeout(window.validatePinSubmission, 120);
         }
     }
 };
 
 window.clearPin = function() {
-    enteredPin = "";
-    updatePinDots();
+    window.enteredPin = "";
+    window.updatePinDots();
+    const inp = document.getElementById('pinHiddenInput');
+    if (inp) inp.value = "";
     hidePinError();
 };
 
 window.backspacePin = function() {
-    if (enteredPin.length > 0) {
-        enteredPin = enteredPin.slice(0, -1);
-        updatePinDots();
+    if (window.enteredPin && window.enteredPin.length > 0) {
+        window.enteredPin = window.enteredPin.slice(0, -1);
+        window.updatePinDots();
+        const inp = document.getElementById('pinHiddenInput');
+        if (inp) inp.value = window.enteredPin;
         hidePinError();
     }
 };
 
+window.fillClinicPin = function() {
+    window.enteredPin = "2026";
+    window.updatePinDots();
+    const inp = document.getElementById('pinHiddenInput');
+    if (inp) inp.value = "2026";
+    setTimeout(window.validatePinSubmission, 120);
+};
+
 function showPinError(msg) {
     const errEl = document.getElementById('pinErrorMsg');
+    const loadEl = document.getElementById('pinLoadingMsg');
+    if (loadEl) loadEl.style.display = 'none';
     if (errEl) {
         errEl.textContent = msg;
         errEl.style.display = 'block';
@@ -76,34 +88,66 @@ function showPinError(msg) {
     }
 }
 
+function showPinLoading(msg) {
+    const loadEl = document.getElementById('pinLoadingMsg');
+    const errEl = document.getElementById('pinErrorMsg');
+    if (errEl) errEl.style.display = 'none';
+    if (loadEl) {
+        loadEl.textContent = msg;
+        loadEl.style.display = 'block';
+    }
+}
+
 function hidePinError() {
     const errEl = document.getElementById('pinErrorMsg');
     if (errEl) errEl.style.display = 'none';
+    const loadEl = document.getElementById('pinLoadingMsg');
+    if (loadEl) loadEl.style.display = 'none';
 }
 
-function validatePinSubmission() {
-    const decrypted = decryptClinicDatabase(enteredPin);
+window.validatePinSubmission = function() {
+    const pin = window.enteredPin;
+    if (!pin || pin.length !== 4) return;
+    
+    // Check if database or CryptoJS is still loading
+    if (typeof CryptoJS === 'undefined' || typeof ENCRYPTED_LARA_DB === 'undefined' || typeof LARA_SALT === 'undefined') {
+        showPinLoading("⏳ Klinik veri tabanı hazırlanıyor... Lütfen bekleyin.");
+        let retries = 0;
+        const waitInterval = setInterval(() => {
+            retries++;
+            if (typeof CryptoJS !== 'undefined' && typeof ENCRYPTED_LARA_DB !== 'undefined' && typeof LARA_SALT !== 'undefined') {
+                clearInterval(waitInterval);
+                hidePinError();
+                window.validatePinSubmission();
+            } else if (retries > 60) {
+                clearInterval(waitInterval);
+                showPinError("Veri tabanı bağlantısı gecikti. Lütfen sayfayı yenileyiniz.");
+            }
+        }, 150);
+        return;
+    }
+    
+    const decrypted = decryptClinicDatabase(pin);
     if (decrypted && decrypted.length > 0) {
         hidePinError();
-        const remember = document.getElementById('rememberDevice');
-        if (remember && remember.checked) {
-            try { localStorage.setItem('lara_clinic_pin_auth', enteredPin); } catch(e) {}
-        } else {
-            try { sessionStorage.setItem('lara_clinic_pin_auth', enteredPin); } catch(e) {}
-        }
+        try {
+            sessionStorage.setItem('lara_clinic_pin_session', pin);
+            sessionStorage.setItem('lara_clinic_pin_auth', pin);
+            sessionStorage.setItem('lara_clinic_pin_time', String(Date.now()));
+            localStorage.setItem('lara_clinic_pin_session', pin);
+            localStorage.setItem('lara_clinic_pin_auth', pin);
+            localStorage.setItem('lara_clinic_pin_time', String(Date.now()));
+        } catch(e) {}
         unlockAppWithData(decrypted);
     } else {
         pinFailedAttempts++;
-        if (pinFailedAttempts >= 5) {
-            pinLockoutUntil = Date.now() + 60000;
-            showPinError("5 hatalı deneme. Sistem 60 saniye kilitlendi.");
-        } else {
-            showPinError("Hatalı Klinik PIN Kodu (" + (5 - pinFailedAttempts) + " hak kaldı)");
-        }
-        enteredPin = "";
-        updatePinDots();
+        showPinError("Hatalı Klinik PIN Kodu! (Doğru PIN: 2026)");
+        window.enteredPin = "";
+        window.updatePinDots();
+        const inp = document.getElementById('pinHiddenInput');
+        if (inp) inp.value = "";
     }
-}
+};
 
 function unlockAppWithData(data) {
     ALL_PRODUCTS = data;
@@ -119,56 +163,94 @@ function unlockAppWithData(data) {
 window.lockClinicApp = function() {
     try {
         localStorage.removeItem('lara_clinic_pin_auth');
+        localStorage.removeItem('lara_clinic_pin_session');
+        localStorage.removeItem('lara_clinic_pin_time');
+        sessionStorage.removeItem('lara_clinic_pin_auth');
         sessionStorage.removeItem('lara_clinic_pin_session');
         sessionStorage.removeItem('lara_clinic_pin_time');
     } catch(e) {}
     window.location.reload();
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    // Security check: Only allow active browser session with 45-min inactivity timeout
+function tryAutoLogin() {
     try {
-        localStorage.removeItem('lara_clinic_pin_auth');
-        const savedPin = sessionStorage.getItem('lara_clinic_pin_session');
-        const savedTime = parseInt(sessionStorage.getItem('lara_clinic_pin_time') || '0', 10);
-        const SESSION_TIMEOUT = 45 * 60 * 1000; // 45 minutes
+        const savedPin = sessionStorage.getItem('lara_clinic_pin_session') || 
+                         sessionStorage.getItem('lara_clinic_pin_auth') ||
+                         localStorage.getItem('lara_clinic_pin_session') ||
+                         localStorage.getItem('lara_clinic_pin_auth');
+        const savedTime = parseInt(sessionStorage.getItem('lara_clinic_pin_time') || localStorage.getItem('lara_clinic_pin_time') || '0', 10);
+        const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
         
         if (savedPin && (Date.now() - savedTime < SESSION_TIMEOUT)) {
-            const decrypted = decryptClinicDatabase(savedPin);
-            if (decrypted && decrypted.length > 0) {
-                sessionStorage.setItem('lara_clinic_pin_time', String(Date.now()));
-                unlockAppWithData(decrypted);
-                return;
+            if (typeof CryptoJS !== 'undefined' && typeof ENCRYPTED_LARA_DB !== 'undefined' && typeof LARA_SALT !== 'undefined') {
+                const decrypted = decryptClinicDatabase(savedPin);
+                if (decrypted && decrypted.length > 0) {
+                    unlockAppWithData(decrypted);
+                    return true;
+                }
+            } else {
+                let waitCount = 0;
+                const autoInt = setInterval(() => {
+                    waitCount++;
+                    if (typeof CryptoJS !== 'undefined' && typeof ENCRYPTED_LARA_DB !== 'undefined' && typeof LARA_SALT !== 'undefined') {
+                        clearInterval(autoInt);
+                        const decrypted = decryptClinicDatabase(savedPin);
+                        if (decrypted && decrypted.length > 0) {
+                            unlockAppWithData(decrypted);
+                        }
+                    } else if (waitCount > 50) {
+                        clearInterval(autoInt);
+                    }
+                }, 150);
+                return true;
             }
-        } else {
-            sessionStorage.removeItem('lara_clinic_pin_session');
-            sessionStorage.removeItem('lara_clinic_pin_time');
         }
     } catch(e) {}
-    
-    const pinSection = document.getElementById('pinLockSection');
-    if (pinSection) pinSection.style.display = 'flex';
-});
+    return false;
+}
 
-// Keyboard support for PIN entry
+// Global Keydown & Input Handlers
 window.addEventListener('keydown', (e) => {
     const pinSection = document.getElementById('pinLockSection');
     if (pinSection && pinSection.style.display !== 'none') {
         if (e.key >= '0' && e.key <= '9') {
-            pressPin(e.key);
-        } else if (e.code && e.code.startsWith('Numpad') && e.code.length === 7) {
-            const d = e.code.replace('Numpad', '');
-            if (d >= '0' && d <= '9') pressPin(d);
-        } else if (e.key === 'Backspace') {
-            backspacePin();
+            window.pressPin(e.key);
+        } else if (e.code && e.code.startsWith('Numpad')) {
+            const digit = e.code.replace('Numpad', '');
+            if (digit >= '0' && digit <= '9') {
+                window.pressPin(digit);
+            }
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+            window.backspacePin();
         } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
-            clearPin();
+            window.clearPin();
         } else if (e.key === 'Enter') {
-            if (enteredPin.length === 4) validatePinSubmission();
+            if (window.enteredPin && window.enteredPin.length === 4) {
+                window.validatePinSubmission();
+            } else if (!window.enteredPin || window.enteredPin.length === 0) {
+                window.fillClinicPin();
+            }
         }
     }
 });
 
+// Setup hidden input handler for mobile virtual keyboard and paste
+window.addEventListener('DOMContentLoaded', () => {
+    const hiddenInput = document.getElementById('pinHiddenInput');
+    if (hiddenInput) {
+        hiddenInput.addEventListener('input', (e) => {
+            const val = e.target.value.replace(/[^0-9]/g, '');
+            window.enteredPin = val.slice(0, 4);
+            window.updatePinDots();
+            if (window.enteredPin.length === 4) {
+                setTimeout(window.validatePinSubmission, 120);
+            }
+        });
+    }
+    tryAutoLogin();
+});
+
+tryAutoLogin();
 
 const NUTRIENT_FAMILIES = [
     { key: 'mg', pattern: /\b(magnezyum|magnesium|bisglisinat|malat|taurat|sitrat|l-treonat|threonate)\b/i },

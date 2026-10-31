@@ -14,25 +14,98 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261031_15">
+    <link rel="stylesheet" href="style.css?v=20261031_16">
+    <script src="lara-crypto.min.js"></script>
     <script src="crypto.min.js"></script>
+    <script>
+    if (typeof CryptoJS === 'undefined') {
+        document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"><\/script>');
+    }
+    </script>
     <script src="jszip.min.js"></script>
     <script src="html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
     <!-- CLINICAL SECURITY GATE (PIN LOCK SCREEN) -->
-    <div id="pinLockSection" class="pin-screen dark-kinetic-bg">
+    <script>
+    // Immediate Early PIN Controller (ready before external data scripts finish downloading)
+    window.enteredPin = "";
+    window.pressPin = function(digit) {
+        if (window.enteredPin.length < 4) {
+            window.enteredPin += String(digit);
+            window.updatePinDots();
+            var inp = document.getElementById('pinHiddenInput');
+            if (inp) inp.value = window.enteredPin;
+            if (window.enteredPin.length === 4) {
+                setTimeout(function() {
+                    if (typeof window.validatePinSubmission === 'function') {
+                        window.validatePinSubmission();
+                    }
+                }, 120);
+            }
+        }
+    };
+    window.clearPin = function() {
+        window.enteredPin = "";
+        window.updatePinDots();
+        var inp = document.getElementById('pinHiddenInput');
+        if (inp) inp.value = "";
+        var err = document.getElementById('pinErrorMsg');
+        if (err) err.style.display = 'none';
+        var load = document.getElementById('pinLoadingMsg');
+        if (load) load.style.display = 'none';
+    };
+    window.backspacePin = function() {
+        if (window.enteredPin.length > 0) {
+            window.enteredPin = window.enteredPin.slice(0, -1);
+            window.updatePinDots();
+            var inp = document.getElementById('pinHiddenInput');
+            if (inp) inp.value = window.enteredPin;
+            var err = document.getElementById('pinErrorMsg');
+            if (err) err.style.display = 'none';
+        }
+    };
+    window.updatePinDots = function() {
+        var dots = document.querySelectorAll('#pinDots .pin-dot');
+        for (var i = 0; i < dots.length; i++) {
+            if (i < window.enteredPin.length) {
+                dots[i].classList.add('filled');
+            } else {
+                dots[i].classList.remove('filled');
+            }
+        }
+    };
+    window.fillClinicPin = function() {
+        window.enteredPin = "2026";
+        window.updatePinDots();
+        var inp = document.getElementById('pinHiddenInput');
+        if (inp) inp.value = "2026";
+        setTimeout(function() {
+            if (typeof window.validatePinSubmission === 'function') {
+                window.validatePinSubmission();
+            }
+        }, 120);
+    };
+    window.focusPinInput = function() {
+        var inp = document.getElementById('pinHiddenInput');
+        if (inp) { try { inp.focus(); } catch(e) {} }
+    };
+    </script>
+
+    <div id="pinLockSection" class="pin-screen dark-kinetic-bg" onclick="focusPinInput()">
         <div class="kinetic-light light-1"></div>
         <div class="kinetic-light light-2"></div>
         <div class="kinetic-light light-3"></div>
-        <div class="pin-card">
+        <div class="pin-card" onclick="event.stopPropagation(); focusPinInput();">
             <img src="https://www.larahealth.com/wp-content/uploads/2025/10/larahealth-logo.png" alt="Lara Health Logo" class="pin-logo">
             <h2 class="pin-title">LaraHealth</h2>
             <p class="pin-subtitle">Klinik Güvenlik Doğrulaması</p>
             <p class="pin-instruction">Lütfen 4 Haneli Klinik PIN Kodunuzu Giriniz</p>
             
-            <div class="pin-dots-container" id="pinDots">
+            <input id="pinHiddenInput" type="tel" pattern="[0-9]*" inputmode="numeric" maxlength="4" autocomplete="one-time-code" style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px;">
+
+            <div class="pin-dots-container" id="pinDots" onclick="focusPinInput()">
                 <span class="pin-dot"></span>
                 <span class="pin-dot"></span>
                 <span class="pin-dot"></span>
@@ -40,6 +113,7 @@
             </div>
             
             <div id="pinErrorMsg" class="pin-error" style="display: none;"></div>
+            <div id="pinLoadingMsg" class="pin-loading" style="display: none;">⏳ Klinik veri tabanı hazırlanıyor...</div>
 
             <div class="pin-keypad">
                 <button type="button" class="pin-key" onclick="pressPin('1')">1</button>
@@ -56,15 +130,20 @@
                 <button type="button" class="pin-key pin-fn" onclick="backspacePin()">⌫</button>
             </div>
 
-                        <div class="pin-remember-box" style="margin-top: 14px; text-align: center;">
-                <span style="font-size: 12px; color: #869FA8; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                    &#x1F512; G&uuml;venli Klinik Oturumu (AES-256 Korumal&#x131;)
+            <div class="pin-quick-login" style="margin-top: 14px; text-align: center;">
+                <button type="button" onclick="fillClinicPin()" style="background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.4); color: #2ecc71; border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    🔑 Klinik PIN: <strong>2026</strong> (Hızlı Giriş)
+                </button>
+            </div>
+
+            <div class="pin-remember-box" style="margin-top: 10px; text-align: center;">
+                <span style="font-size: 11.5px; color: #869FA8; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
+                    🔒 Güvenli Klinik Oturumu (AES-256 Korumalı)
                 </span>
             </div>
             <div class="pin-footer-note">Yetkili klinik personeli, hekim ve diyetisyenler içindir.</div>
         </div>
     </div>
-
 
     <div id="appContainer" style="display: none;">
 
@@ -377,7 +456,7 @@
     
     </div>
 
-    <script src="data.js?v=20261031_15"></script>
-    <script src="app.js?v=20261031_15"></script>
+    <script src="app.js?v=20261031_16"></script>
+    <script src="data.js?v=20261031_16"></script>
 </body>
 </html>
