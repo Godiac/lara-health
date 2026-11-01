@@ -65,13 +65,6 @@ window.backspacePin = function() {
     }
 };
 
-window.fillClinicPin = function() {
-    window.enteredPin = "2026";
-    window.updatePinDots();
-    const inp = document.getElementById('pinHiddenInput');
-    if (inp) inp.value = "2026";
-    setTimeout(window.validatePinSubmission, 120);
-};
 
 function showPinError(msg) {
     const errEl = document.getElementById('pinErrorMsg');
@@ -141,7 +134,7 @@ window.validatePinSubmission = function() {
         unlockAppWithData(decrypted);
     } else {
         pinFailedAttempts++;
-        showPinError("Hatalı Klinik PIN Kodu! (Doğru PIN: 2026)");
+        showPinError("Hatalı Klinik PIN Kodu. Lütfen tekrar deneyiniz.");
         window.enteredPin = "";
         window.updatePinDots();
         const inp = document.getElementById('pinHiddenInput');
@@ -227,8 +220,6 @@ window.addEventListener('keydown', (e) => {
         } else if (e.key === 'Enter') {
             if (window.enteredPin && window.enteredPin.length === 4) {
                 window.validatePinSubmission();
-            } else if (!window.enteredPin || window.enteredPin.length === 0) {
-                window.fillClinicPin();
             }
         }
     }
