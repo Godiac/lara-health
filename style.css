@@ -2916,3 +2916,28 @@
     border-color: rgba(239, 68, 68, 0.4);
     color: #FCA5A5;
 }
+
+
+/* --- PRINT MEDIA RULES (PC & MOBILE) --- */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+    body {
+        background: #FFFFFF !important;
+        color: #111827 !important;
+    }
+    .app-header,
+    .controls-panel,
+    .filters-section,
+    .products-container,
+    .rx-drawer,
+    .rx-drawer-backdrop,
+    .floating-rx-btn,
+    .pin-lock-section,
+    #rxWordDownloadToast,
+    #rxPdfDownloadToast {
+        display: none !important;
+    }
+}

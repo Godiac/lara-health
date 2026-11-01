@@ -4139,6 +4139,24 @@ function buildPrescriptionFileName(danisan, docTitle, tarih, ext = 'docx') {
     return `${safeDanisan} - ${safeTitle} - ${safeTarih}.${ext}`;
 }
 
+function isItemInSlot(item, slotKey) {
+    if (!item) return false;
+    if (typeof getItemScheduleSlots === 'function') {
+        const slots = getItemScheduleSlots(item);
+        if (Array.isArray(slots) && slots.length > 0) {
+            if (slotKey === 'gece' && slots.includes('yatmadan')) return true;
+            if (slotKey === 'yatmadan' && slots.includes('gece')) return true;
+            return slots.includes(slotKey);
+        }
+    }
+    const z = (item.zaman || '').toLowerCase();
+    if (slotKey === 'sabah') return z.includes('sabah') || z.includes('kahvaltı');
+    if (slotKey === 'ogle') return z.includes('öğle') || z.includes('ogle');
+    if (slotKey === 'aksam') return z.includes('akşam') || z.includes('aksam');
+    if (slotKey === 'gece' || slotKey === 'yatmadan') return z.includes('gece') || z.includes('yatmadan') || z.includes('uyku');
+    return false;
+}
+
 function generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol) {
     const ivItems = prescriptionList.filter(isIVProduct);
     const medItems = prescriptionList.filter(isMedicationProduct);
@@ -4658,23 +4676,39 @@ async function downloadPrescriptionPdf() {
         return;
     }
 
+    const pdfBtn = document.querySelector('.btn-rx-pdf');
+    if (pdfBtn) {
+        pdfBtn.disabled = true;
+        pdfBtn.innerHTML = '<span>⏳</span> <span>Hazırlanıyor...</span>';
+    }
+
     const danisan = (rxMetadata.kime || '').trim();
     const docTitle = getPrescriptionDocTitle();
     const tarih = (rxMetadata.tarih || new Date().toLocaleDateString('tr-TR')).trim();
     const kontrol = (rxMetadata.kontrol || calculateDefaultControlDate(tarih)).trim();
     const filename = buildPrescriptionFileName(danisan, docTitle, tarih, 'pdf');
 
-    // Create offscreen container with exact A4 proportion (794px width is standard 96dpi A4)
+    // Show temporary preparing toast banner
+    let toastEl = document.getElementById('rxPdfDownloadToast');
+    if (!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.id = 'rxPdfDownloadToast';
+        toastEl.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#0F172A; color:#FFFFFF; padding:12px 22px; border-radius:10px; font-size:13.5px; font-weight:700; z-index:999999; box-shadow:0 10px 25px rgba(0,0,0,0.35); display:flex; align-items:center; gap:12px; border:1.5px solid #0D9488;';
+        document.body.appendChild(toastEl);
+    }
+    toastEl.innerHTML = `<span>⏳</span> <span>PDF protokolü hazırlanıyor, lütfen bekleyiniz...</span>`;
+    toastEl.style.display = 'flex';
+
+    // Create rendering container in document normal flow
     const printContainer = document.createElement('div');
     printContainer.id = 'pdfRenderContainer';
-    printContainer.style.position = 'absolute';
-    printContainer.style.left = '-9999px';
-    printContainer.style.top = '0';
+    printContainer.style.position = 'relative';
     printContainer.style.width = '794px';
+    printContainer.style.maxWidth = '794px';
     printContainer.style.background = '#FFFFFF';
     printContainer.style.color = '#111827';
-    printContainer.style.padding = '24px 32px';
-    printContainer.style.boxSizing = 'border-box';
+    printContainer.style.padding = '0';
+    printContainer.style.margin = '0';
     printContainer.innerHTML = generatePrescriptionPrintHtml(docTitle, danisan, tarih, kontrol);
     document.body.appendChild(printContainer);
 
@@ -4691,9 +4725,10 @@ async function downloadPrescriptionPdf() {
             };
 
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
+
             if (isMobile && navigator.canShare) {
                 try {
-                    const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
                     if (navigator.canShare({ files: [file] })) {
                         await navigator.share({
@@ -4701,14 +4736,40 @@ async function downloadPrescriptionPdf() {
                             title: filename,
                             text: `${docTitle} • ${danisan}`
                         });
+                        finishPdfDownload(filename, null);
                         return;
                     }
                 } catch (shareErr) {
-                    if (shareErr.name === 'AbortError') return;
+                    if (shareErr.name === 'AbortError') {
+                        finishPdfDownload(filename, null);
+                        return;
+                    }
                 }
             }
 
-            await html2pdf().set(opt).from(printContainer).save();
+            // Standard PC download via blob URL
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.rel = 'noopener';
+            link.target = '_self';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+
+            try {
+                link.click();
+            } catch (e) {
+                const evt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+                link.dispatchEvent(evt);
+            }
+
+            finishPdfDownload(filename, blobUrl);
+
+            setTimeout(() => {
+                if (link.parentNode) link.parentNode.removeChild(link);
+                URL.revokeObjectURL(blobUrl);
+            }, 60000);
         } else {
             alert('PDF motoru hazırlanamadı. Yazdırma penceresi açılıyor; hedef olarak "PDF Olarak Kaydet" seçeneğini belirleyebilirsiniz.');
             printPrescription();
@@ -4721,6 +4782,28 @@ async function downloadPrescriptionPdf() {
         if (printContainer && printContainer.parentNode) {
             printContainer.parentNode.removeChild(printContainer);
         }
+        if (pdfBtn) {
+            pdfBtn.disabled = false;
+            pdfBtn.innerHTML = '<span>📄</span> <span>PDF İndir (.pdf)</span>';
+        }
+    }
+
+    function finishPdfDownload(finalName, blobUrl) {
+        if (pdfBtn) {
+            pdfBtn.disabled = false;
+            pdfBtn.innerHTML = '<span>📄</span> <span>PDF İndir (.pdf)</span>';
+        }
+
+        const fallbackLinkHtml = blobUrl 
+            ? `<a href="${blobUrl}" download="${finalName}" style="color:#2DD4BF; text-decoration:underline; font-weight:800; margin-left:6px;">Buraya Tıklayın</a>`
+            : '';
+
+        toastEl.innerHTML = `<span>📥</span> <span>PDF protokolü indirildi: <strong>${finalName}</strong></span> ${fallbackLinkHtml}`;
+        toastEl.style.display = 'flex';
+
+        setTimeout(() => {
+            if (toastEl) toastEl.style.display = 'none';
+        }, 6500);
     }
 }
 
@@ -4740,19 +4823,21 @@ function printPrescription() {
 
     // Hidden iframe for zero-popup printing on PC & Mobile
     let printIframe = document.getElementById('rxHiddenPrintIframe');
-    if (printIframe) {
-        document.body.removeChild(printIframe);
+    if (printIframe && printIframe.parentNode) {
+        printIframe.parentNode.removeChild(printIframe);
     }
 
     printIframe = document.createElement('iframe');
     printIframe.id = 'rxHiddenPrintIframe';
     printIframe.style.position = 'fixed';
-    printIframe.style.right = '0';
-    printIframe.style.bottom = '0';
-    printIframe.style.width = '0';
-    printIframe.style.height = '0';
+    printIframe.style.left = '0';
+    printIframe.style.top = '0';
+    printIframe.style.width = '100%';
+    printIframe.style.height = '100%';
     printIframe.style.border = '0';
-    printIframe.style.visibility = 'hidden';
+    printIframe.style.zIndex = '-99999';
+    printIframe.style.opacity = '0.01';
+    printIframe.style.pointerEvents = 'none';
     document.body.appendChild(printIframe);
 
     const doc = printIframe.contentWindow.document;
@@ -4776,7 +4861,7 @@ function printPrescription() {
                 alert('Yazdırma penceresi açılamadı. Lütfen açılır pencere engelleyicisini kontrol ediniz veya "PDF İndir" seçeneğini kullanınız.');
             }
         }
-    }, 450);
+    }, 400);
 }
 
 
