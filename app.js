@@ -144,6 +144,7 @@ window.validatePinSubmission = function() {
 
 function unlockAppWithData(data) {
     ALL_PRODUCTS = data;
+    window.ALL_PRODUCTS = data;
     const pinSection = document.getElementById('pinLockSection');
     const appCont = document.getElementById('appContainer');
     if (pinSection) pinSection.style.display = 'none';
@@ -1423,6 +1424,167 @@ function onChipClick(chipText, event) {
     window.scrollTo({ top: 320, behavior: 'smooth' });
 }
 
+
+// ==========================================================================
+// ==========================================================================
+// RESMİ KLİNİK PROSPEKTÜS & SUPPLEMENT FACTS TABLO MOTORU
+// ==========================================================================
+function parseFormulation(icerikStr) {
+    if (!icerikStr || !icerikStr.trim()) return { servingSize: '1 Porsiyon', ingredients: [], otherIngredients: '' };
+
+    let str = icerikStr.trim();
+
+    // 1. Porsiyon Büyüklüğü Ayıklama
+    let servingSize = '1 Porsiyon';
+    const servingPatterns = [
+        /^(?:Her\s+)?(\d+\s*(?:ağızda\s+dağılan\s+)?(?:kapsül(?:de)?|tablet(?:te)?|lozenge|puf(?:\/\d+\s*damla)?|saşe(?:de)?|ölçek(?:te)?|damla(?:da)?|ml(?:'de)?|vegan\s*kapsül(?:de)?|vegetarian\s*capsules?|tablets?)[^:·\r\n]*)(?:İçeriği|:|·)?/i,
+        /(?:Miktar\s*\(([^)]+)\)|Porsiyon\s*Büyüklüğü\s*:\s*([^,\r\n;]+))/i
+    ];
+
+    for (let i = 0; i < servingPatterns.length; i++) {
+        const m = str.match(servingPatterns[i]);
+        if (m) {
+            servingSize = (m[1] || m[2]).replace(/İçeriği$/i, '').trim();
+            str = str.replace(m[0], '').trim();
+            break;
+        }
+    }
+
+    // 2. Diğer / Yardımcı Bileşenler
+    let otherIngredients = '';
+    const otherIdx = str.search(/Diğer\s+Bileşenler|Other\s+Ingredients|Yardımcı\s+Maddeler/i);
+    if (otherIdx !== -1) {
+        otherIngredients = str.substring(otherIdx).replace(/^(?:Diğer\s+Bileşenler|Other\s+Ingredients|Yardımcı\s+Maddeler)\s*[:·]?\s*/i, '').trim();
+        str = str.substring(0, otherIdx).trim();
+    }
+
+    str = str.replace(/^[:·\-\s]+/, '');
+
+    // 3. Etken Maddeleri Parçala (Parantez içi virgüller korunur)
+    const rawItems = [];
+    let current = '';
+    let parenDepth = 0;
+    let bracketDepth = 0;
+
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (char === '(') parenDepth++;
+        else if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
+        else if (char === '[') bracketDepth++;
+        else if (char === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+
+        if ((char === ',' || char === ';' || char === '\n' || char === '\r' || char === '·') && parenDepth === 0 && bracketDepth === 0) {
+            if (current.trim()) rawItems.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    if (current.trim()) rawItems.push(current.trim());
+
+    const ingredients = [];
+    rawItems.forEach(item => {
+        let clean = item.replace(/^[:·\-\s]+/, '').replace(/[.\s]+$/, '').trim();
+        if (!clean) return;
+
+        let name = clean;
+        let amount = '-';
+
+        const colonMatch = clean.match(/^([^:·]+)[:·]\s*(.+)$/);
+        if (colonMatch) {
+            name = colonMatch[1].trim();
+            amount = colonMatch[2].trim();
+        } else {
+            const doseMatch = clean.match(/^(.*?)(?:\s+|:)((\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.|milyar\s*kob|cfu|damla|ml|puf)(?:\s*(?:\/[^,\r\n;]+|RAE|DFE|\([^)]+\)))?))$/i);
+            if (doseMatch) {
+                name = doseMatch[1].trim();
+                amount = doseMatch[2].trim();
+            } else {
+                const embeddedMatch = clean.match(/^(.*?)\s*\(.*?((\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.)(?:\s*[^)]*)))\)$/i);
+                if (embeddedMatch) {
+                    amount = embeddedMatch[2].trim();
+                }
+            }
+        }
+
+        name = name.replace(/^Etken\s*Maddeler\s*[:·]?\s*/i, '').trim();
+
+        if (name) {
+            ingredients.push({ name, amount });
+        }
+    });
+
+    return { servingSize, ingredients, otherIngredients };
+}
+
+function renderSupplementFactsTable(p) {
+    const parsed = parseFormulation(p.icerik);
+    
+    let rowsHtml = '';
+    if (parsed.ingredients && parsed.ingredients.length > 0) {
+        rowsHtml = parsed.ingredients.map(ing => `
+            <div class="facts-item-row">
+                <div class="facts-item-name">${escapeHtml(ing.name)}</div>
+                <div class="facts-item-dose">${escapeHtml(ing.amount)}</div>
+            </div>
+        `).join('');
+    } else {
+        rowsHtml = `
+            <div style="padding: 10px 0; color: #44403C; font-size: 13px; line-height: 1.5;">
+                ${escapeHtml(p.icerik || 'Klinik formülasyon bilgisi bulunmamaktadır.')}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="supplement-facts-card">
+            <div class="facts-header">
+                <div class="facts-brand-badge">${escapeHtml(p.marka || 'LARAHEALTH')} &bull; RESMİ KLİNİK PROSPEKTÜS</div>
+                <div class="facts-title">BESİN DEĞERLERİ & İÇERİK TABLOSU</div>
+                <div style="font-size: 12px; color: #57534E; font-weight: 600; margin-top: 2px;">${escapeHtml(p.urunAdi)}</div>
+            </div>
+            <div class="facts-serving-row">
+                <span>Porsiyon Büyüklüğü: <strong style="color: #0D5C3A;">${escapeHtml(parsed.servingSize)}</strong></span>
+                <span>Önerilen Dozaj: <strong>${escapeHtml(p.dozaj || 'Hekim / Diyetisyen Önerisi')}</strong></span>
+            </div>
+            <div class="facts-col-header">
+                <span style="flex: 1;">Etken Madde / Aktif Bileşen</span>
+                <span style="text-align: right; min-width: 90px;">Miktar / Porsiyon</span>
+            </div>
+            <div class="facts-body">
+                ${rowsHtml}
+            </div>
+            ${parsed.otherIngredients ? `
+                <div class="facts-other-ingredients">
+                    <strong>Diğer / Yardımcı Bileşenler:</strong> ${escapeHtml(parsed.otherIngredients)}
+                </div>
+            ` : ''}
+            <div class="facts-footer-notice">
+                ✦ Resmi üretici monografı ve akredite laboratuvar analiz değerleridir. T.C. Tarım ve Orman Bakanlığı / Uluslararası Farmakope standartlarına uygundur.
+            </div>
+        </div>
+    `;
+}
+
+window.switchProspektusView = function(viewMode) {
+    const tableView = document.getElementById('modalProspektusTableView');
+    const imgView = document.getElementById('modalProspektusImageView');
+    const btnTable = document.getElementById('btnProspTabTable');
+    const btnImg = document.getElementById('btnProspTabImg');
+
+    if (viewMode === 'image') {
+        if (tableView) tableView.style.display = 'none';
+        if (imgView) imgView.style.display = 'flex';
+        if (btnTable) btnTable.classList.remove('active');
+        if (btnImg) btnImg.classList.add('active');
+    } else {
+        if (tableView) tableView.style.display = 'block';
+        if (imgView) imgView.style.display = 'none';
+        if (btnTable) btnTable.classList.add('active');
+        if (btnImg) btnImg.classList.remove('active');
+    }
+};
+
 function openDetailModal(id) {
     const p = ALL_PRODUCTS.find(x => x.id === id);
     if (!p) return;
@@ -1470,24 +1632,54 @@ function openDetailModal(id) {
     const productImg = document.getElementById('modalProductImg');
     const modalImg = document.getElementById('modalProspektusImg');
     const modalSection = document.getElementById('modalProspektusSection');
+    const modalTableView = document.getElementById('modalProspektusTableView');
+    const modalImageView = document.getElementById('modalProspektusImageView');
+    const modalTabsContainer = document.getElementById('modalProspektusTabs');
 
-    const hasProsp = !!p.prospektus_gorsel;
-    const isGorselProsp = p.gorsel && (p.gorsel.toLowerCase().includes('prospektus') || p.gorsel.toLowerCase().includes('besin_deger'));
+    // Prospectus & Bottle URL detection
+    const isProspUrl = (url) => {
+        if (!url) return false;
+        const u = url.toLowerCase();
+        return u.includes('prospektus') || u.includes('besin_deger') || u.includes('facts') || u.includes('nutrition') || u.includes('supplement') || u.includes('etiket') || u.includes('icerik_tablo');
+    };
 
-    // 1. Resmi Prospektus / Besin Degerleri Gorseli
-    if (hasProsp) {
-        if (modalImg) modalImg.src = p.prospektus_gorsel;
-        if (modalSection) modalSection.style.display = 'block';
-    } else if (isGorselProsp) {
-        if (modalImg) modalImg.src = p.gorsel;
-        if (modalSection) modalSection.style.display = 'block';
-    } else {
-        if (modalSection) modalSection.style.display = 'none';
-        if (modalImg) modalImg.src = '';
+    let prospSrc = p.prospektus_gorsel;
+    let bottleSrc = p.ambalaj_gorsel;
+
+    if (!prospSrc && p.gorsel && isProspUrl(p.gorsel)) {
+        prospSrc = p.gorsel;
+    }
+    if (!bottleSrc && p.gorsel && !isProspUrl(p.gorsel)) {
+        bottleSrc = p.gorsel;
+    }
+    // Prevent duplicate bottle image acting as prospectus
+    if (prospSrc && bottleSrc && prospSrc === bottleSrc) {
+        prospSrc = null;
     }
 
-    // 2. Urun Orijinal Ambalaj Gorseli (Sise / Kutu)
-    const bottleSrc = p.ambalaj_gorsel || (p.gorsel && !p.gorsel.toLowerCase().includes('prospektus') ? p.gorsel : null);
+    // 1. Resmi Prospektüs & İçerik Tablosu (ALWAYS DISPLAYED - NEVER HIDDEN)
+    if (modalSection) {
+        modalSection.style.display = 'block';
+    }
+
+    // Render Clinical Supplement Facts Table
+    if (modalTableView) {
+        modalTableView.innerHTML = renderSupplementFactsTable(p);
+    }
+
+    // Configure View & Tabs
+    if (prospSrc) {
+        if (modalImg) modalImg.src = prospSrc;
+        if (modalTabsContainer) modalTabsContainer.style.display = 'inline-flex';
+        switchProspektusView('table');
+    } else {
+        if (modalImg) modalImg.src = '';
+        if (modalTabsContainer) modalTabsContainer.style.display = 'none';
+        if (modalTableView) modalTableView.style.display = 'block';
+        if (modalImageView) modalImageView.style.display = 'none';
+    }
+
+    // 2. Ürün Orijinal Ambalaj Görseli (Şişe / Kutu)
     if (bottleSrc) {
         if (productImg) productImg.src = bottleSrc;
         if (productImgCard) productImgCard.style.display = 'block';

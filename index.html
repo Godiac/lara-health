@@ -14,7 +14,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261101_02">
+    <link rel="stylesheet" href="style.css?v=20261103_03">
     <script src="lara-crypto.min.js"></script>
     <script src="crypto.min.js"></script>
     <script>
@@ -350,16 +350,27 @@
                     </div>
 
                     <!-- 2. Resmi Prospektüs / Besin Değerleri Tablosu -->
-                    <div class="modal-field" id="modalProspektusSection" style="display: none; margin-bottom: 0;">
-                        <span class="modal-field-label" style="display: flex; align-items: center; gap: 6px;">
-                            <span>📄</span> Resmi Prospektüs / İçerik Tablosu
-                        </span>
-                        <div class="prospektus-preview-box" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px;">
-                            <img id="modalProspektusImg" class="prospektus-img" src="" alt="Ürün Prospektüsü" 
-                                 onclick="window.open(this.src, '_blank')" title="Tam boy görmek için tıklayın"
-                                 style="max-height: 260px; object-fit: contain;">
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
-                                Büyütmek veya indirmek için görsele tıklayabilirsiniz.
+                    <div class="modal-field" id="modalProspektusSection" style="margin-bottom: 0;">
+                        <div class="prospektus-controls">
+                            <span class="modal-field-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 0;">
+                                <span>📄</span> Resmi Prospektüs & Klinik İçerik Tablosu
+                            </span>
+                            <div class="prospektus-tabs" id="modalProspektusTabs" style="display: none;">
+                                <button type="button" class="prospektus-tab-btn active" id="btnProspTabTable" onclick="switchProspektusView('table')">📊 Klinik Tablo</button>
+                                <button type="button" class="prospektus-tab-btn" id="btnProspTabImg" onclick="switchProspektusView('image')">🖼️ Resmi Görsel</button>
+                            </div>
+                        </div>
+                        <div class="prospektus-preview-box" id="modalProspektusBox" style="padding: 12px; min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <!-- View A: Structured Table -->
+                            <div id="modalProspektusTableView" style="width: 100%;"></div>
+                            <!-- View B: Scanned Prospectus Image -->
+                            <div id="modalProspektusImageView" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+                                <img id="modalProspektusImg" class="prospektus-img" src="" alt="Ürün Prospektüsü" 
+                                     onclick="window.open(this.src, '_blank')" title="Tam boy görmek için tıklayın"
+                                     style="max-height: 380px; object-fit: contain;">
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                                    Büyütmek veya indirmek için görsele tıklayabilirsiniz.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -440,7 +451,7 @@
     
     </div>
 
-    <script src="app.js?v=20261101_02"></script>
-    <script src="data.js?v=20261101_02"></script>
+    <script src="app.js?v=20261103_03"></script>
+    <script src="data.js?v=20261103_03"></script>
 </body>
 </html>
