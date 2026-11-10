@@ -420,6 +420,142 @@ function updateViewModeUI() {
     }
 }
 
+function toTrLower(str) {
+    if (!str) return '';
+    return String(str).replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+}
+
+// EXTENDED QUERY PROFILE (SYNONYM & STEMMING ENGINE)
+function getExtendedQueryProfile(query) {
+    if (!query) return null;
+    const q = toTrLower(query).trim();
+    if (!q) return null;
+
+    const intent = getClinicalQueryIntent(q);
+    const aliases = new Set();
+    aliases.add(q);
+
+    let family = intent ? intent.family : null;
+    let unitType = intent ? intent.unitType : 'mass';
+    let isEnzyme = false;
+
+    // 1. Enzyme Query (Turkish "enzim" <-> English "enzym/enzyme/enzymes")
+    if (/^(enzim|enzym|enzyme|enzymes|sindirim\s*enzimi|digestive\s*enzymes?)$/i.test(q) ||
+        q === 'enzim' || q === 'enzym' || q.includes('enzim') || q.includes('enzym')) {
+        if (!q.includes('koenzim') && !q.includes('coenzyme') && !q.includes('coq10') && !q.includes('ubiquin')) {
+            family = 'ENZYME';
+            isEnzyme = true;
+            aliases.add('enzim');
+            aliases.add('enzym');
+            aliases.add('enzyme');
+            aliases.add('enzymes');
+            aliases.add('sindirim enzimi');
+            aliases.add('digestive enzyme');
+            aliases.add('digestive enzymes');
+        }
+    }
+
+    // 2. Vitamin General Query ("vitamin" / "vitamini" / "vitamins")
+    if (/^(vitamin|vitamini|vitamını|vitamins|vit|multivitamin|multivitamini)$/i.test(q)) {
+        family = family || 'VITAMIN_GENERAL';
+        aliases.add('vitamin');
+        aliases.add('vitamini');
+        aliases.add('vitamını');
+        aliases.add('vitamins');
+        aliases.add('vit');
+        aliases.add('multivitamin');
+        aliases.add('multi-vitamin');
+    }
+
+    // 3. B12 Specific Query
+    if (family === 'B12_VITAMIN' || /^(b12|b-12|b\s*12|metilkobalamin|kobalamin)$/i.test(q)) {
+        family = 'B12_VITAMIN';
+        unitType = 'mcg';
+        aliases.add('b12');
+        aliases.add('b-12');
+        aliases.add('b 12');
+        aliases.add('vitamin b12');
+        aliases.add('b12 vitamini');
+        aliases.add('metilkobalamin');
+        aliases.add('methylcobalamin');
+        aliases.add('adenozilkobalamin');
+        aliases.add('hidroksokobalamin');
+        aliases.add('siyanokobalamin');
+        aliases.add('kobalamin');
+        aliases.add('mecobalactive');
+    }
+
+    if (intent) {
+        (intent.sortAliases || []).forEach(a => aliases.add(toTrLower(a)));
+        (intent.highlightTerms || []).forEach(a => aliases.add(toTrLower(a)));
+    }
+
+    const matchedIng = matchQueryToIngredient(q);
+    if (matchedIng) {
+        aliases.add(toTrLower(matchedIng.name));
+        (matchedIng.aliases || []).forEach(a => aliases.add(toTrLower(a)));
+    }
+
+    return {
+        raw: q,
+        family,
+        unitType,
+        isEnzyme,
+        aliases: [...aliases].filter(Boolean),
+        intent
+    };
+}
+
+// RELEVANCE LOCATION TIER COMPUTATION:
+// 1 = Title Direct Match (İsimde Doğrudan Geçenler - En Üstte)
+// 2 = Brand or Key Tag Match
+// 3 = Formulation (icerik) Match
+// 4 = Indication / Description (endikasyon) Match
+// 999 = No Match
+function computeSingleLocationTier(product, profile) {
+    if (!profile) return 1;
+    const title = toTrLower(product.urunAdi || '');
+    const brand = toTrLower(product.marka || '');
+    const tags = toTrLower(product.tags || '');
+    const icerik = toTrLower(product.icerik || '');
+    const endikasyon = toTrLower(product.endikasyon || '');
+
+    const { aliases, isEnzyme } = profile;
+
+    function testField(str) {
+        if (!str) return false;
+        if (isEnzyme) {
+            // Must NOT match koenzim / coenzyme
+            const enzymeRegex = /\b(enzim\w*|enzym\w*|enzyme\w*)\b/i;
+            const m = str.match(enzymeRegex);
+            if (m) {
+                const w = m[0].toLowerCase();
+                if (!w.startsWith('ko') && !w.startsWith('co')) return true;
+            }
+            for (const a of aliases) {
+                if (a.includes(' ') && str.includes(a)) return true;
+            }
+            return false;
+        }
+
+        for (const a of aliases) {
+            if (a.length <= 3) {
+                const re = new RegExp('\\b' + escapeRegex(a) + '\\b', 'i');
+                if (re.test(str)) return true;
+            } else {
+                if (str.includes(a)) return true;
+            }
+        }
+        return false;
+    }
+
+    if (testField(title)) return 1;
+    if (testField(brand) || testField(tags)) return 2;
+    if (testField(icerik)) return 3;
+    if (testField(endikasyon)) return 4;
+    return 999;
+}
+
 // CLINICAL MODULAR QUERY ROUTER
 function getClinicalQueryIntent(query) {
     if (!query || !query.trim()) return null;
@@ -732,124 +868,112 @@ function filterAndSortProducts() {
         list = list.filter(p => isModuleMatch(p, currentModule));
     }
 
-    // 3. Search query filter (Dual Slot & Exclusion Engine)
+    // 3. Search query filter (Dual Slot & Exclusion Engine with Relevance Location Hierarchy)
     let targetSortAliases = null;
     let targetSortLabel = '';
     let targetUnitType = 'mass';
 
-    const q1 = (searchQuery1 || '').toLowerCase().trim();
-    const q2 = (searchQuery2 || '').toLowerCase().trim();
-    const qEx = (searchExclude || '').toLowerCase().trim();
+    const q1 = (searchQuery1 || '').trim();
+    const q2 = (searchQuery2 || '').trim();
+    const qEx = (searchExclude || '').trim();
 
     if (q1 || q2 || qEx) {
-        const intent1 = q1 ? getClinicalQueryIntent(q1) : null;
-        const intent2 = q2 ? getClinicalQueryIntent(q2) : null;
-        const primaryIntent = intent1 || intent2;
-
-        function checkTermMatch(p, query, intent) {
-            if (!query) return true;
-            const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.icerik || '')).toLowerCase();
-            const fullText = (titleAndIcerik + ' ' + (p.marka || '') + ' ' + (p.tags || '') + ' ' + (p.endikasyon || '')).toLowerCase();
-
-            if (intent) {
-                if (!intent.filterRegex.test(fullText)) return false;
-
-                const aliases = intent.sortAliases || intent.highlightTerms;
-                const negPattern = '\\b(' + aliases.map(escapeRegex).join('|') + ')\\b[^.!?\\n]{0,30}?(içermez|bulunmaz|yoktur|free|minus)';
-                if (new RegExp(negPattern, 'i').test(titleAndIcerik)) return false;
-
-                const emilimPattern = '\\b(' + aliases.map(escapeRegex).join('|') + ')\\b\\s+(emilimi|emilimini|emilim|desteği)';
-                if (new RegExp(emilimPattern, 'i').test(titleAndIcerik)) {
-                    const dos = extractDosage(p, aliases, intent.unitType);
-                    if (!dos) return false;
-                }
-                return true;
-            }
-
-            const rawTokens = query.split(/\s+/).filter(t => t.length > 0);
-            const meaningfulTokens = rawTokens.filter(t => !['vitamini', 'vitamını', 'vitamin', 'vit'].includes(t));
-            const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
-
-            for (let tok of tokens) {
-                if (tok.length >= 2) {
-                    const negRe = new RegExp('\\b' + escapeRegex(tok) + '\\b[^.!?\\n]{0,25}?(içermez|bulunmaz|yoktur|free)', 'i');
-                    if (negRe.test(titleAndIcerik)) return false;
-                }
-            }
-
-            return tokens.every(token => {
-                if (token.length === 1) {
-                    return new RegExp('\\b' + token + '\\b', 'i').test(fullText);
-                }
-                return fullText.includes(token);
-            });
-        }
+        const prof1 = q1 ? getExtendedQueryProfile(q1) : null;
+        const prof2 = q2 ? getExtendedQueryProfile(q2) : null;
+        const primaryProf = prof1 || prof2;
 
         list = list.filter(p => {
-            if (!checkTermMatch(p, q1, intent1)) return false;
-            if (!checkTermMatch(p, q2, intent2)) return false;
+            // Negative mentions filter (e.g. "B12 içermez", "şekersiz", etc.)
+            const titleAndIcerik = ((p.urunAdi || '') + ' ' + (p.icerik || '')).toLowerCase();
+            if (prof1 && prof1.aliases) {
+                const negRe = new RegExp('\\b(' + prof1.aliases.map(escapeRegex).join('|') + ')\\b[^.!?\\n]{0,25}?(içermez|bulunmaz|yoktur|free)', 'i');
+                if (negRe.test(titleAndIcerik)) return false;
+            }
+            if (prof2 && prof2.aliases) {
+                const negRe = new RegExp('\\b(' + prof2.aliases.map(escapeRegex).join('|') + ')\\b[^.!?\\n]{0,25}?(içermez|bulunmaz|yoktur|free)', 'i');
+                if (negRe.test(titleAndIcerik)) return false;
+            }
+
+            if (prof1) {
+                const t1 = computeSingleLocationTier(p, prof1);
+                if (t1 >= 999) return false;
+                p._loc1 = t1;
+            } else {
+                p._loc1 = null;
+            }
+
+            if (prof2) {
+                const t2 = computeSingleLocationTier(p, prof2);
+                if (t2 >= 999) return false;
+                p._loc2 = t2;
+            } else {
+                p._loc2 = null;
+            }
 
             if (qEx) {
-                const fullText = ((p.urunAdi || '') + ' ' + (p.icerik || '') + ' ' + (p.marka || '') + ' ' + (p.tags || '')).toLowerCase();
-                if (fullText.includes(qEx)) return false;
+                const exLower = toTrLower(qEx);
+                const fullText = toTrLower((p.urunAdi || '') + ' ' + (p.icerik || '') + ' ' + (p.marka || '') + ' ' + (p.tags || ''));
+                if (fullText.includes(exLower)) return false;
             }
             return true;
         });
 
-        if (primaryIntent) {
-            targetSortAliases = primaryIntent.sortAliases || primaryIntent.highlightTerms;
-            targetSortLabel = primaryIntent.family;
-            targetUnitType = primaryIntent.unitType || 'mass';
+        if (primaryProf) {
+            targetSortAliases = primaryProf.aliases;
+            targetSortLabel = primaryProf.family || [q1, q2].filter(Boolean).join(' + ');
+            targetUnitType = primaryProf.unitType || 'mass';
         } else {
-            const rawTokens = [...q1.split(/\s+/), ...q2.split(/\s+/)].filter(t => t.length > 0);
-            const matchedIng = (q1 && matchQueryToIngredient(q1)) || (q2 && matchQueryToIngredient(q2));
-            if (matchedIng) {
-                targetSortAliases = matchedIng.aliases;
-                targetSortLabel = matchedIng.label;
-            } else {
-                targetSortAliases = rawTokens;
-                targetSortLabel = [q1, q2].filter(Boolean).join(' + ');
-            }
+            targetSortAliases = [toTrLower(q1 || q2)];
+            targetSortLabel = [q1, q2].filter(Boolean).join(' + ');
         }
-    } else if (activeRankingIngredient) {
-        const aliases = activeRankingIngredient.aliases;
-        list = list.filter(p => {
-            const full = ((p.urunAdi || '') + ' ' + (p.icerik || '') + ' ' + (p.tags || '')).toLowerCase();
-            return aliases.some(a => full.includes(a));
-        });
-        targetSortAliases = aliases;
-        targetSortLabel = activeRankingIngredient.label;
-    }
 
-    // 4. Sort automatically: Purity Tier (Saf/Tekil En Üstte) -> Dozaj Azalan -> Karışıklar En Altta
-    if (targetSortAliases && targetSortAliases.length > 0) {
+        // 4. Sort automatically: Location Tier (İsimde Geçenler En Üstte) -> Purity Tier (Saf/Tekil) -> Dozaj Azalan
         list.forEach(p => {
+            if (prof1 && prof2) {
+                p._matchLocationTier = Math.max(p._loc1, p._loc2);
+            } else {
+                p._matchLocationTier = prof1 ? p._loc1 : (prof2 ? p._loc2 : 1);
+            }
             p._purityTier = getPurityTier(p, searchQuery, targetSortAliases);
             p._active_dosage = extractDosage(p, targetSortAliases, targetUnitType);
         });
 
         list.sort((a, b) => {
-            // 1. Purity Tier: Tier 1 (Saf/Tekil) en üstte, Tier 2 (Sinerji) ortada, Tier 3 (Karışık/Kompleks) en altta
+            // 1. RELEVANCE LOCATION TIER: Title match (Tier 1) ALWAYS comes first!
+            const locA = a._matchLocationTier || 1;
+            const locB = b._matchLocationTier || 1;
+            if (locA !== locB) {
+                return locA - locB;
+            }
+
+            // 2. Dual search bonus: If both search words are matched in title, prioritize
+            if (prof1 && prof2) {
+                const sumA = (a._loc1 || 1) + (a._loc2 || 1);
+                const sumB = (b._loc1 || 1) + (b._loc2 || 1);
+                if (sumA !== sumB) return sumA - sumB;
+            }
+
+            // 3. Clinical Purity Tier (Saf/Tekil Tier 1 > Sinerji Tier 2 > Kompleks Tier 3)
             const tierA = a._purityTier || 3;
             const tierB = b._purityTier || 3;
             if (tierA !== tierB) {
                 return tierA - tierB;
             }
 
-            // 2. Aynı tier içinde en yüksek dozajdan en düşüğe otomatik sıralama
+            // 4. Descending Active Dosage (Higher dosage first)
             const da = a._active_dosage ? a._active_dosage.standardVal : 0;
             const db = b._active_dosage ? b._active_dosage.standardVal : 0;
             if (db !== da) {
                 return db - da;
             }
 
-            // 3. Eşit dozlarda başlık doğrudan eşleşmesi önceliği
-            const titleA = (a.urunAdi || '').toLowerCase();
-            const titleB = (b.urunAdi || '').toLowerCase();
-            const matchA = targetSortAliases.some(x => titleA.includes(x.toLowerCase()));
-            const matchB = targetSortAliases.some(x => titleB.includes(x.toLowerCase()));
-            if (matchA && !matchB) return -1;
-            if (!matchA && matchB) return 1;
+            // 5. Title Starts-with or Standalone Word Match Bonus
+            const titleA = toTrLower(a.urunAdi || '');
+            const titleB = toTrLower(b.urunAdi || '');
+            const exactA = targetSortAliases.some(x => titleA.startsWith(x) || new RegExp('\\b' + escapeRegex(x) + '\\b', 'i').test(titleA));
+            const exactB = targetSortAliases.some(x => titleB.startsWith(x) || new RegExp('\\b' + escapeRegex(x) + '\\b', 'i').test(titleB));
+            if (exactA && !exactB) return -1;
+            if (!exactA && exactB) return 1;
 
             return (a.urunAdi || '').localeCompare(b.urunAdi || '', 'tr');
         });
@@ -862,15 +986,44 @@ function filterAndSortProducts() {
             if (label === 'B12_VITAMIN') label = 'B12 Vitamini (Aktif Metilkobalamin)';
             if (label === 'MAGNESIUM') label = 'Magnezyum Formülasyonları';
             if (label === 'AKKERMANSIA') label = 'Akkermansia Muciniphila';
+            if (label === 'ENZYME') label = 'Sindirim ve Metabolik Enzimler';
+            if (label === 'VITAMIN_GENERAL') label = 'Vitamin Formülasyonları';
 
             let extraInfo = '';
             if (q1 && q2) extraInfo = ' (1. Kelime: "' + q1 + '" + 2. Kelime: "' + q2 + '")';
             if (qEx) extraInfo += ' [Dışlanan: "' + qEx + '"]';
 
-            indicator.innerHTML = '⚡ Akıllı Klinik Arama: <strong>' + label + extraInfo + '</strong> &mdash; <span style="color:#059669; font-weight:700;">✨ Saf / Tekil Formüller En Üstte</span> &rarr; <span style="color:#2563eb; font-weight:600;">⚡ Sinerjik Formüller</span> &rarr; <span style="color:#6b7280;">🌿 Kompleks Karışımlar</span> (Dozaj Azalan)';
+            indicator.innerHTML = '⚡ Akıllı Klinik Arama: <strong>' + label + extraInfo + '</strong> &mdash; <span style="color:#059669; font-weight:700;">🏷️ İsimde Geçenler En Üstte</span> &rarr; <span style="color:#2563eb; font-weight:600;">✨ Saf / Tekil Formüller</span> &rarr; <span style="color:#6b7280;">🌿 Kompleks Karışımlar</span>';
         }
+    } else if (activeRankingIngredient) {
+        const aliases = activeRankingIngredient.aliases.map(toTrLower);
+        list = list.filter(p => {
+            const full = toTrLower((p.urunAdi || '') + ' ' + (p.icerik || '') + ' ' + (p.tags || ''));
+            return aliases.some(a => full.includes(a));
+        });
+        targetSortAliases = aliases;
+        targetSortLabel = activeRankingIngredient.label;
+
+        list.forEach(p => {
+            const title = toTrLower(p.urunAdi || '');
+            p._matchLocationTier = aliases.some(a => title.includes(a)) ? 1 : 3;
+            p._purityTier = getPurityTier(p, searchQuery, targetSortAliases);
+            p._active_dosage = extractDosage(p, targetSortAliases, targetUnitType);
+        });
+
+        list.sort((a, b) => {
+            if (a._matchLocationTier !== b._matchLocationTier) return a._matchLocationTier - b._matchLocationTier;
+            const tierA = a._purityTier || 3;
+            const tierB = b._purityTier || 3;
+            if (tierA !== tierB) return tierA - tierB;
+            const da = a._active_dosage ? a._active_dosage.standardVal : 0;
+            const db = b._active_dosage ? b._active_dosage.standardVal : 0;
+            if (db !== da) return db - da;
+            return (a.urunAdi || '').localeCompare(b.urunAdi || '', 'tr');
+        });
     } else {
         list.forEach(p => {
+            delete p._matchLocationTier;
             delete p._purityTier;
             delete p._active_dosage;
         });
