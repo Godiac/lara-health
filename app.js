@@ -1429,15 +1429,85 @@ function onChipClick(chipText, event) {
 // ==========================================================================
 // RESMİ KLİNİK PROSPEKTÜS & SUPPLEMENT FACTS TABLO MOTORU
 // ==========================================================================
-function parseFormulation(icerikStr) {
+// RESMİ KLİNİK PROSPEKTÜS & SUPPLEMENT FACTS TABLO MOTORU
+// ==========================================================================
+function detectProductFormClean(p) {
+    if (!p) return 'Kapsül';
+    if (p.isMedication && p.form) return p.form;
+    if (p.form && p.form !== 'undefined') return p.form;
+    const u = (p.urunAdi || '').toLowerCase();
+    
+    if (u.includes('softgel') || u.includes('sgels') || u.includes('yumuşak kapsül') || u.includes('yumusak kapsul')) return 'Yumuşak Kapsül (Softgel)';
+    if (u.includes('ağızda dağılan') || u.includes('agizda dagilan') || u.includes('orodispersible') || u.includes('dilaltı') || u.includes('dilalti')) {
+        if (u.includes('sprey') || u.includes('spray')) return 'Sprey';
+        return 'Ağızda Dağılan Tablet';
+    }
+    if (u.includes('çiğneme tableti') || u.includes('cigneme tableti') || u.includes('chewable tablet')) return 'Çiğneme Tableti';
+    if (u.includes('efervesan') || u.includes('effervescent')) return 'Efervesan Tablet';
+    if (u.includes('tablet') || u.includes('tabs') || u.includes('caplet')) return 'Tablet';
+    if (u.includes('kapsül') || u.includes('kapsul') || u.includes('capsule') || u.includes('caps') || u.includes('vcaps') || u.includes('drcaps')) return 'Kapsül';
+    if (u.includes('damla') || u.includes('drops')) return 'Damla';
+    if (u.includes('sprey') || u.includes('spray') || u.includes('puf')) return 'Sprey';
+    if (u.includes('sıvı') || u.includes('sivi') || u.includes('liquid') || u.includes('şurup') || u.includes('surup') || u.includes('likit') || u.includes('shot')) return 'Sıvı / Damla';
+    if (u.includes('saşe') || u.includes('sase') || u.includes('sachet')) return 'Saşe';
+    if (u.includes('toz') || u.includes('powder') || u.includes('ölçek') || u.includes('olcek')) return 'Toz';
+    if (u.includes('pastil') || u.includes('lozenge')) return 'Pastil';
+    if (u.includes('gummy') || u.includes('gummies') || u.includes('çiğneme formu') || u.includes('cigneme formu')) return 'Gummy';
+    if (u.includes('flakon') || u.includes('ampul')) return 'Flakon';
+    if (u.includes('iv ') || u.endsWith(' iv') || (p.marka || '').toLowerCase() === 'iv therapy') return 'IV İnfüzyon';
+
+    const d = (p.dozaj || '').toLowerCase();
+    if (d.includes('softgel') || d.includes('yumuşak kapsül')) return 'Yumuşak Kapsül (Softgel)';
+    if (d.includes('damla')) return 'Damla';
+    if (d.includes('puf') || d.includes('sprey')) return 'Sprey';
+    if (d.includes('saşe') || d.includes('sase')) return 'Saşe';
+    if (d.includes('ölçek') || d.includes('toz')) return 'Toz';
+    if (d.includes('pastil')) return 'Pastil';
+    if (d.includes('tablet')) return 'Tablet';
+    if (d.includes('kapsül') || d.includes('kapsul')) return 'Kapsül';
+    if (d.includes('ml')) return 'Sıvı / Damla';
+
+    const t = (p.tags || '').toLowerCase();
+    if (t.includes('tablet')) return 'Tablet';
+    if (t.includes('softgel')) return 'Yumuşak Kapsül (Softgel)';
+    if (t.includes('saşe') || t.includes('sase')) return 'Saşe';
+    if (t.includes('damla')) return 'Damla';
+    if (t.includes('toz')) return 'Toz';
+    return 'Kapsül';
+}
+
+function parseFormulation(icerikStr, urunAdi = '') {
     if (!icerikStr || !icerikStr.trim()) return { servingSize: '1 Porsiyon', ingredients: [], otherIngredients: '' };
 
     let str = icerikStr.trim();
 
-    // 1. Porsiyon Büyüklüğü Ayıklama
+    // 1. Pipe-delimited scraped table handling (e.g. 5 ml'de | Balık yağı | 2291 mg | ...)
+    if (str.includes('|')) {
+        let serving = '1 Porsiyon';
+        const parts = str.split('|').map(s => s.trim()).filter(Boolean);
+        const ingredients = [];
+        let startIdx = 0;
+        if (parts.length > 0 && /(?:ml|tatlı|kaşığı|kapsül|tablet|ölçek|saşe|porsiyon)/i.test(parts[0])) {
+            serving = parts[0];
+            startIdx = 1;
+        }
+        for (let i = startIdx; i < parts.length; i += 2) {
+            const name = parts[i];
+            const amt = parts[i+1] || '-';
+            if (name && !/(?:diğer|yardımcı|other)/i.test(name)) {
+                ingredients.push({ name, amount: amt });
+            }
+        }
+        if (ingredients.length > 0) {
+            return { servingSize: serving, ingredients, otherIngredients: '' };
+        }
+    }
+
+    // 2. Porsiyon Büyüklüğü Ayıklama
     let servingSize = '1 Porsiyon';
     const servingPatterns = [
-        /^(?:Her\s+)?(\d+\s*(?:ağızda\s+dağılan\s+)?(?:kapsül(?:de)?|tablet(?:te)?|lozenge|puf(?:\/\d+\s*damla)?|saşe(?:de)?|ölçek(?:te)?|damla(?:da)?|ml(?:'de)?|vegan\s*kapsül(?:de)?|vegetarian\s*capsules?|tablets?)[^:·\r\n]*)(?:İçeriği|:|·)?/i,
+        /^(?:Her\s+)?(\d+\s*(?:ağızda\s+dağılan\s+)?(?:kapsül(?:de)?|tablet(?:te)?|lozenge|puf(?:\/\d+\s*damla)?|saşe(?:de)?|ölçek(?:te)?|damla(?:da)?|ml(?:'de)?|sıvı\s*shot\s*tüpünde(?:\s*\([^)]+\))?|çiğneme\s*tablet(?:inde)?|flakon(?:da)?|vegan\s*kapsül(?:de)?|vegetarian\s*capsules?|tablets?|porsiyon(?:da)?)[^:·\r\n]*)(?:İçeriği|:|·)?/i,
+        /^(?:Her\s+)?([^\r\n:·]*(?:kapsülde|tablette|saşede|ölçekte|damlada|ml'de|porsiyonda))\s*[:·]/i,
         /(?:Miktar\s*\(([^)]+)\)|Porsiyon\s*Büyüklüğü\s*:\s*([^,\r\n;]+))/i
     ];
 
@@ -1450,17 +1520,18 @@ function parseFormulation(icerikStr) {
         }
     }
 
-    // 2. Diğer / Yardımcı Bileşenler
+    // 3. Diğer / Yardımcı Bileşenler
     let otherIngredients = '';
-    const otherIdx = str.search(/Diğer\s+Bileşenler|Other\s+Ingredients|Yardımcı\s+Maddeler/i);
-    if (otherIdx !== -1) {
-        otherIngredients = str.substring(otherIdx).replace(/^(?:Diğer\s+Bileşenler|Other\s+Ingredients|Yardımcı\s+Maddeler)\s*[:·]?\s*/i, '').trim();
-        str = str.substring(0, otherIdx).trim();
+    const otherRegex = /(?:Diğer\s*(?:Bileşenler|Maddeler)?|Other\s*Ingredients|Yardımcı\s*Maddeler)\s*[:·]?\s*/i;
+    const otherMatch = str.match(otherRegex);
+    if (otherMatch) {
+        otherIngredients = str.substring(otherMatch.index + otherMatch[0].length).trim();
+        str = str.substring(0, otherMatch.index).trim();
     }
 
     str = str.replace(/^[:·\-\s]+/, '');
 
-    // 3. Etken Maddeleri Parçala (Parantez içi virgüller korunur)
+    // 4. Etken Maddeleri Parçala (Parantez içi virgüller korunur)
     const rawItems = [];
     let current = '';
     let parenDepth = 0;
@@ -1495,19 +1566,37 @@ function parseFormulation(icerikStr) {
             name = colonMatch[1].trim();
             amount = colonMatch[2].trim();
         } else {
-            const doseMatch = clean.match(/^(.*?)(?:\s+|:)((\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.|milyar\s*kob|cfu|damla|ml|puf)(?:\s*(?:\/[^,\r\n;]+|RAE|DFE|\([^)]+\)))?))$/i);
-            if (doseMatch) {
-                name = doseMatch[1].trim();
-                amount = doseMatch[2].trim();
+            const startsWithDose = clean.match(/^(\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.|milyar\s*kob|cfu))(.*)$/i);
+            if (startsWithDose) {
+                amount = startsWithDose[1].trim();
+                const restName = startsWithDose[2].replace(/^[:·\-\s]+/, '').trim();
+                name = restName || (urunAdi ? urunAdi.split('|')[0].trim() : 'Aktif Bileşen');
             } else {
-                const embeddedMatch = clean.match(/^(.*?)\s*\(.*?((\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.)(?:\s*[^)]*)))\)$/i);
-                if (embeddedMatch) {
-                    amount = embeddedMatch[2].trim();
+                const doseMatch = clean.match(/^(.*?)(?:\s+|:)((\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.|milyar\s*kob|cfu|damla|ml|puf)(?:\s*(?:\/[^,\r\n;]+|RAE|DFE|\([^)]+\)))?))$/i);
+                if (doseMatch) {
+                    name = doseMatch[1].trim();
+                    amount = doseMatch[2].trim();
+                } else {
+                    const embeddedMatch = clean.match(/^(.*?)\s*\(.*?(\d+[\d.,]*\s*(?:mg|mcg|µg|ug|g|iu|u\.i\.|i\.u\.)(?:\s*[^)]*))\)$/i);
+                    if (embeddedMatch) {
+                        name = embeddedMatch[1].trim();
+                        amount = embeddedMatch[2].trim();
+                    }
                 }
             }
         }
 
         name = name.replace(/^Etken\s*Maddeler\s*[:·]?\s*/i, '').trim();
+
+        // If name happens to be empty or just numbers, fallback to urunAdi
+        if (!name || /^\d+$/.test(name)) {
+            name = urunAdi ? urunAdi.split('|')[0].trim() : 'Aktif Bileşen';
+        }
+
+        // If name looks like serving leftover (e.g. '2 Kapsülde', '1 Tabletinde')
+        if (/^\d+\s*(?:kapsül|tablet|saşe|ölçek|damla)/i.test(name)) {
+            name = urunAdi ? urunAdi.split('|')[0].trim() : name;
+        }
 
         if (name) {
             ingredients.push({ name, amount });
@@ -1518,7 +1607,44 @@ function parseFormulation(icerikStr) {
 }
 
 function renderSupplementFactsTable(p) {
-    const parsed = parseFormulation(p.icerik);
+    if (isMedicationProduct(p)) {
+        return `
+            <div class="supplement-facts-card medication-facts-card" style="border-top-color: #1E3A8A;">
+                <div class="facts-header" style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);">
+                    <div class="facts-brand-badge" style="background: #1E3A8A; color: #FFFFFF;">${escapeHtml(p.marka || 'FARMASÖTİK İLAÇ')} &bull; RESMİ PROSPEKTÜS KÜNYESİ</div>
+                    <div class="facts-title" style="color: #1E3A8A;">T.C. SAĞLIK BAKANLIĞI / KLİNİK İLAÇ PROSPEKTÜSÜ</div>
+                    <div style="font-size: 13px; color: #1E3A8A; font-weight: 700; margin-top: 3px;">${escapeHtml(p.urunAdi)}</div>
+                </div>
+                <div class="facts-serving-row" style="background: #F8FAFC;">
+                    <span>Farmasötik Form: <strong style="color: #1E3A8A;">${escapeHtml(p.form || 'Film Tablet')}</strong></span>
+                    <span>Tıbbi Reçete Yetkisi: <strong style="color: #1E3A8A;">🩺 Prof. Dr. Arda Lembet</strong></span>
+                </div>
+                <div class="facts-body" style="padding: 12px 14px;">
+                    <div class="facts-item-row" style="padding: 8px 0; border-bottom: 1.5px solid #E2E8F0;">
+                        <div class="facts-item-name" style="font-weight: 700; color: #0F172A;">Etken Madde (Aktif Bileşen)</div>
+                        <div class="facts-item-dose" style="font-weight: 800; color: #1E3A8A; font-size: 13.5px;">${escapeHtml(p.etkenMadde || p.urunAdi)}</div>
+                    </div>
+                    <div class="facts-item-row" style="padding: 8px 0; border-bottom: 1.5px solid #E2E8F0;">
+                        <div class="facts-item-name" style="font-weight: 600; color: #334155;">Standart Tedavi Dozu</div>
+                        <div class="facts-item-dose" style="font-weight: 700; color: #0F172A;">${escapeHtml(p.varsayilanDoz || p.dozaj || '1 x 1 tablet')} (${escapeHtml(p.varsayilanKullanim || 'Tok karnına')})</div>
+                    </div>
+                    <div class="facts-item-row" style="padding: 8px 0; border-bottom: 1.5px solid #E2E8F0;">
+                        <div class="facts-item-name" style="font-weight: 600; color: #334155;">Kullanım Sıklığı & Zamanı</div>
+                        <div class="facts-item-dose" style="font-weight: 700; color: #0F172A;">${escapeHtml(p.varsayilanSiklik || 'Günde 1 kez')} &bull; ${escapeHtml(p.varsayilanZaman || 'Sabah')}</div>
+                    </div>
+                    ${p.aciklama ? `
+                    <div style="margin-top: 10px; font-size: 12px; color: #475569; line-height: 1.5; background: #F1F5F9; padding: 10px 12px; border-radius: 6px;">
+                        <strong>Klinik Endikasyon & Mekanizma:</strong> ${escapeHtml(p.aciklama)}
+                    </div>` : ''}
+                </div>
+                <div class="facts-footer-notice" style="background: #F8FAFC; color: #64748B;">
+                    ✦ T.C. Sağlık Bakanlığı Türkiye İlaç ve Tıbbi Cihaz Kurumu (TİTCK) onaylı resmi hekim prospektüsüdür. Reçeteli medikal ilaçtır.
+                </div>
+            </div>
+        `;
+    }
+
+    const parsed = parseFormulation(p.icerik, p.urunAdi);
     
     let rowsHtml = '';
     if (parsed.ingredients && parsed.ingredients.length > 0) {
@@ -1667,11 +1793,12 @@ function openDetailModal(id) {
         modalTableView.innerHTML = renderSupplementFactsTable(p);
     }
 
-    // Configure View & Tabs
+    // Configure View & Tabs:
+    // If a scanned/real prospectus image exists, default to 'image' so user sees the authentic prospectus!
     if (prospSrc) {
         if (modalImg) modalImg.src = prospSrc;
         if (modalTabsContainer) modalTabsContainer.style.display = 'inline-flex';
-        switchProspektusView('table');
+        switchProspektusView('image');
     } else {
         if (modalImg) modalImg.src = '';
         if (modalTabsContainer) modalTabsContainer.style.display = 'none';
@@ -1720,70 +1847,122 @@ function addModalProductToRx() {
 // TAKVİYE KULLANIM PLANI & WORD EXPORT ENGINE (TAM KLİNİK MODÜL)
 // ==========================================================================
 function parseSupplementUsage(p) {
+    if (!p) return { doz: '1 x 1 kapsül', siklik: 'Günde 1 kez', zaman: 'Sabah', kullanim: 'Yemekten sonra', sure: '3 ay', not: '' };
+
     const dozaj = (p.dozaj || '').trim();
-    let doz = '1 x 1 kapsül';
+    const urunAdi = (p.urunAdi || '').trim();
+    const form = p.form || detectProductFormClean(p);
+    const dLower = dozaj.toLowerCase();
+    const uLower = urunAdi.toLowerCase();
+
+    // Determine clinical unit
+    let unit = 'kapsül';
+    if (form.includes('Tablet') || form.includes('Lozenge')) unit = 'tablet';
+    else if (form.includes('Softgel') || form.includes('Yumuşak Kapsül')) unit = 'softgel';
+    else if (form.includes('Saşe')) unit = 'saşe';
+    else if (form.includes('Toz')) unit = 'ölçek';
+    else if (form.includes('Damla')) unit = 'damla';
+    else if (form.includes('Sprey')) unit = 'puf';
+    else if (form.includes('Sıvı')) unit = 'ml';
+    else if (form.includes('Pastil')) unit = 'pastil';
+    else if (form.includes('Gummy')) unit = 'gummy';
+    else if (form.includes('Flakon')) unit = 'flakon';
+
+    let doz = '1 x 1 ' + unit;
     let siklik = 'Günde 1 kez';
     let zaman = 'Sabah';
     let kullanim = 'Yemekten sonra';
     let sure = '3 ay';
     let not = '';
 
-    const dLower = dozaj.toLowerCase();
+    if (p.varsayilanDoz) doz = p.varsayilanDoz;
+    if (p.varsayilanSiklik) siklik = p.varsayilanSiklik;
+    if (p.varsayilanZaman) zaman = p.varsayilanZaman;
+    if (p.varsayilanKullanim) kullanim = p.varsayilanKullanim;
+    if (p.varsayilanSure) sure = p.varsayilanSure;
 
-    // Doz
-    if (dLower.includes('2x2') || dLower.includes('2 x 2')) {
-        doz = '2 x 2 kapsül';
-        siklik = 'Günde 2 kez';
-    } else if (dLower.includes('2 kapsül') || dLower.includes('2 tablet')) {
-        doz = '1 x 2 kapsül';
-    } else if (dLower.includes('1-2 kapsül') || dLower.includes('1-2 tablet')) {
-        doz = '1 x 1-2 kapsül';
-    } else if (dLower.includes('saşe') || dLower.includes('sase')) {
-        doz = '1 x 1 saşe';
-    } else if (dLower.includes('ölçek') || dLower.includes('olcek')) {
-        doz = '1 x 1 ölçek';
-    } else if (dLower.includes('damla')) {
-        const m = dLower.match(/(\d+)\s*damla/);
-        doz = m ? (m[1] + ' damla') : '10 damla';
-    } else if (dLower.includes('flakon')) {
-        doz = '1 flakon';
-    } else if (dLower.includes('pastil')) {
-        doz = '1 x 1 pastil';
+    if (!p.varsayilanDoz) {
+        if (unit === 'damla') {
+            const m = dLower.match(/(\d+)\s*damla/);
+            const count = m ? m[1] : '10';
+            doz = count + ' damla';
+        } else if (unit === 'puf') {
+            const m = dLower.match(/(\d+)\s*puf/);
+            const count = m ? m[1] : '1';
+            doz = count + ' puf (dilaltı)';
+        } else if (unit === 'ml') {
+            const m = dLower.match(/(\d+[\d.,]*)\s*ml/i);
+            const spoon = dLower.includes('tatlı kaşığı') ? ' (1 tatlı kaşığı)' : (dLower.includes('yemek kaşığı') ? ' (1 yemek kaşığı)' : (dLower.includes('çay kaşığı') ? ' (1 çay kaşığı)' : ''));
+            const mlVal = m ? m[1] : '5';
+            doz = mlVal + ' ml' + spoon;
+        } else if (dLower.includes('2x2') || dLower.includes('2 x 2')) {
+            doz = '2 x 2 ' + unit;
+            siklik = 'Günde 2 kez';
+        } else if (dLower.includes('2x1') || dLower.includes('2 x 1') || dLower.includes('sabah akşam 1') || dLower.includes('sabah 1, akşam 1') || dLower.includes('sabah 1 akşam 1')) {
+            doz = '2 x 1 ' + unit;
+            siklik = 'Günde 2 kez';
+        } else if (dLower.includes('3x1') || dLower.includes('3 x 1')) {
+            doz = '3 x 1 ' + unit;
+            siklik = 'Günde 3 kez';
+        } else if (dLower.includes('3 kapsül') || dLower.includes('3 tablet') || dLower.includes('3 yumuşak') || dLower.includes('3 softgel')) {
+            doz = '1 x 3 ' + unit;
+        } else if (dLower.includes('2 kapsül') || dLower.includes('2 tablet') || dLower.includes('2 yumuşak') || dLower.includes('2 softgel') || dLower.includes('2 porsiyon') || dLower.includes('günde 2')) {
+            doz = '1 x 2 ' + unit;
+        } else if (dLower.includes('1-2 kapsül') || dLower.includes('1-2 tablet') || dLower.includes('1-2 porsiyon')) {
+            doz = '1 x 1-2 ' + unit;
+        } else if (dLower.includes('1 kapsül') || dLower.includes('1 tablet') || dLower.includes('1 saşe') || dLower.includes('1 ölçek') || dLower.includes('1 porsiyon')) {
+            doz = '1 x 1 ' + unit;
+        } else {
+            doz = '1 x 1 ' + unit;
+        }
     }
 
-    // Sıklık
-    if (dLower.includes('günde 2') || dLower.includes('2x') || dLower.includes('sabah akşam')) {
-        siklik = 'Günde 2 kez';
-    } else if (dLower.includes('günde 3') || dLower.includes('3x')) {
-        siklik = 'Günde 3 kez';
-    } else if (dLower.includes('gün aşırı') || dLower.includes('haftada')) {
-        siklik = 'Gün aşırı';
+    if (!p.varsayilanSiklik) {
+        if (dLower.includes('günde 2') || dLower.includes('2x') || dLower.includes('sabah akşam')) {
+            siklik = 'Günde 2 kez';
+        } else if (dLower.includes('günde 3') || dLower.includes('3x')) {
+            siklik = 'Günde 3 kez';
+        } else if (dLower.includes('gün aşırı')) {
+            siklik = 'Gün aşırı';
+        } else if (dLower.includes('haftada 1') || dLower.includes('haftalık')) {
+            siklik = 'Haftada 1';
+        } else {
+            siklik = 'Günde 1 kez';
+        }
     }
 
-    // Zaman
-    if (dLower.includes('yatmadan') || dLower.includes('gece') || dLower.includes('uyku')) {
-        zaman = 'Yatmadan';
-    } else if (dLower.includes('akşam') || dLower.includes('aksam')) {
-        zaman = 'Akşam';
-    } else if (dLower.includes('öğle') || dLower.includes('ogle')) {
-        zaman = 'Öğle';
-    } else {
-        zaman = 'Sabah';
+    if (!p.varsayilanZaman) {
+        if (dLower.includes('yatmadan') || dLower.includes('gece') || dLower.includes('uyku')) {
+            zaman = 'Yatmadan';
+        } else if (dLower.includes('akşam') || dLower.includes('aksam')) {
+            zaman = 'Akşam';
+        } else if (dLower.includes('öğle') || dLower.includes('ogle')) {
+            zaman = 'Öğle';
+        } else if (siklik === 'Günde 2 kez') {
+            zaman = 'Sabah, Akşam';
+        } else if (siklik === 'Günde 3 kez') {
+            zaman = 'Sabah, Öğle, Akşam';
+        } else {
+            zaman = 'Sabah';
+        }
     }
 
-    // Kullanım
-    if (dLower.includes('aç') || dLower.includes('ac karnina')) {
-        kullanim = 'Aç karnına';
-    } else if (dLower.includes('önce') || dLower.includes('oncesi')) {
-        kullanim = 'Yemekten önce';
-    } else if (dLower.includes('birlikte') || dLower.includes('yemekle')) {
-        kullanim = 'Yemekle birlikte';
-    } else {
-        kullanim = 'Yemekten sonra';
+    if (!p.varsayilanKullanim) {
+        if (dLower.includes('aç') || dLower.includes('ac karnina')) {
+            kullanim = 'Aç karnına';
+        } else if (dLower.includes('önce') || dLower.includes('oncesi')) {
+            kullanim = 'Yemekten önce';
+        } else if (dLower.includes('birlikte') || dLower.includes('yemekle') || dLower.includes('yemek sırasında')) {
+            kullanim = 'Yemekle birlikte';
+        } else {
+            kullanim = 'Yemekten sonra';
+        }
     }
 
     return { doz, siklik, zaman, kullanim, sure, not };
 }
+
+
 
 function isMedicationProduct(item) {
     if (!item) return false;
@@ -1965,26 +2144,15 @@ function formatScheduleSingleDose(dozStr, isMed) {
     }
     let s = String(dozStr).trim();
 
-    // Check for "A x B [unit]" pattern (e.g. 1 x 2 kapsül, 2 x 1 kapsül, 1 x 1 tablet, 1x2, 2x1)
+    // Check for "A x B [unit]" pattern (e.g. 1 x 2 tablet, 2 x 1 kapsül, 1 x 1 saşe, 1 x 1-2 kapsül)
     const matchX = s.match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
     if (matchX) {
         const firstNum = matchX[1].trim();
         const secondNum = matchX[2].trim();
         let unit = matchX[3].trim();
 
-        const uLower = unit.toLowerCase();
-        let amount = firstNum;
-        if (secondNum.includes('-')) {
-            amount = secondNum;
-        } else if (uLower.includes('damla') || uLower.includes('puff') || uLower.includes('puf') || uLower.includes('sprey')) {
-            const secVal = parseInt(secondNum, 10);
-            if (secVal > 1) {
-                amount = secondNum;
-            }
-        } else {
-            // Klinik Kuralı: 1x2 kapsül -> 1 kapsül (o anda 1 adet), 2x1 -> 2 kapsül (o anda 2 adet), 1x1 -> 1 kapsül
-            amount = firstNum;
-        }
+        // Klinik Kuralı: Tekil zaman diliminde (Sabah, Öğle, Akşam veya Yatmadan) alınacak miktar secondNum'dur!
+        let amount = secondNum;
 
         if (unit) {
             return amount + ' ' + unit;
@@ -3530,8 +3698,9 @@ function consolidateRxItemsForTable(items) {
         // Combined frequency
         const combinedSiklik = 'Günde ' + count + ' kez';
 
-        // Format clean single dose
+        // Format clean single dose and consolidated dose
         const cleanDose = formatScheduleSingleDose(first.doz, isMedicationProduct(first));
+        const consolidatedDoz = count > 1 ? (count + ' x ' + cleanDose) : first.doz;
 
         // Combine unique notes
         const notes = [];
@@ -3555,7 +3724,7 @@ function consolidateRxItemsForTable(items) {
 
         return {
             ...first,
-            doz: cleanDose,
+            doz: consolidatedDoz,
             siklik: combinedSiklik,
             zaman: combinedZaman,
             kullanim: combinedUsage,
