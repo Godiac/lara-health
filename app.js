@@ -372,7 +372,8 @@ const CAROUSEL_INGREDIENTS = [
     { name: 'Çinko', label: 'Çinko', aliases: ['çinko', 'zinc', 'pikolinat', 'bisglisinat'] },
     { name: 'Probiyotik', label: 'Probiyotik', aliases: ['probiyotik', 'probiotic', 'lactobacillus', 'bifidobacterium'] },
     { name: 'Demir', label: 'Demir (Lipozomal / Bisglisinat)', aliases: ['demir', 'iron', 'ferrit', 'bisglisinat'] },
-    { name: 'NAC', label: 'NAC (N-Asetil Sistein)', aliases: ['nac', 'n-asetil sistein', 'acetylcysteine'] }
+    { name: 'NAC', label: 'NAC (N-Asetil Sistein)', aliases: ['nac', 'n-asetil sistein', 'acetylcysteine'] },
+    { name: 'Urolithin A', label: 'Urolithin A (Ürolitin A)', aliases: ['urolithin a', 'urolithin', 'urolitin a', 'urolitin', 'ürolitin a', 'ürolitin', 'mitopure', 'prolithin a', 'prolithin'] }
 ];
 
 function escapeHtml(str) {
@@ -485,6 +486,23 @@ function getExtendedQueryProfile(query) {
         aliases.add('mecobalactive');
     }
 
+    // 4. Urolithin A Query ("urolitin" <-> "urolithin a" <-> "ürolitin")
+    if (family === 'UROLITHIN' || /^(urolitin|urolitin\s*a|ürolitin|ürolitin\s*a|urolithin|urolithin\s*a|mitopure|prolithin)$/i.test(q) ||
+        q.includes('urolitin') || q.includes('ürolitin') || q.includes('urolithin')) {
+        family = 'UROLITHIN';
+        aliases.add('urolitin');
+        aliases.add('urolitin a');
+        aliases.add('ürolitin');
+        aliases.add('ürolitin a');
+        aliases.add('urolithin');
+        aliases.add('urolithin a');
+        aliases.add('urolithine');
+        aliases.add('mitopure');
+        aliases.add('prolithin');
+        aliases.add('prolithin a');
+        aliases.add('n-ürolit');
+    }
+
     if (intent) {
         (intent.sortAliases || []).forEach(a => aliases.add(toTrLower(a)));
         (intent.highlightTerms || []).forEach(a => aliases.add(toTrLower(a)));
@@ -560,6 +578,21 @@ function computeSingleLocationTier(product, profile) {
 function getClinicalQueryIntent(query) {
     if (!query || !query.trim()) return null;
     const q = query.toLowerCase().trim();
+
+    // Urolithin A / Ürolitin A / Mitopure Ailesi ("urolitin" <-> "urolithin a" <-> "ürolitin")
+    if (/^(urolitin|urolitin\s*a|ürolitin|ürolitin\s*a|urolithin|urolithin\s*a|urolithine|mitopure|prolithin|prolithin\s*a)$/i.test(q) ||
+        q.includes('urolitin') || q.includes('ürolitin') || q.includes('urolithin')) {
+        return {
+            family: 'UROLITHIN',
+            unitType: 'mass',
+            filterRegex: /\b(urolitin|urolitin\s*a|ürolitin|ürolitin\s*a|urolithin|urolithin\s*a|mitopure|prolithin|n-ürolit)\b/i,
+            highlightTerms: [
+                'urolithin a', 'urolithin', 'urolitin a', 'urolitin', 'ürolitin a', 'ürolitin',
+                'mitopure', 'prolithin a', 'prolithin', 'n-ürolit'
+            ],
+            sortAliases: ['urolithin a', 'urolithin', 'urolitin a', 'urolitin', 'ürolitin a', 'ürolitin', 'mitopure', 'prolithin a']
+        };
+    }
 
     // 1. D Vitamini Ailesi
     if (/^(d\s*vitamini|vitamin\s*d|d-vitamini|d\s*vit|d3\s*vitamini|vitamin\s*d3|d3|d2|kolekalsiferol|cholecalciferol|ergokalsiferol)$/i.test(q) ||
@@ -982,6 +1015,7 @@ function filterAndSortProducts() {
         if (indicator) {
             let label = targetSortLabel || [q1, q2].filter(Boolean).join(' + ') || searchQuery;
             if (label === 'COQ10') label = 'Koenzim Q10 / CoQ10 / Ubiquinol';
+            if (label === 'UROLITHIN') label = 'Urolithin A / Ürolitin A (Mitopure)';
             if (label === 'D_VITAMIN') label = 'D Vitamini Ailesi';
             if (label === 'B12_VITAMIN') label = 'B12 Vitamini (Aktif Metilkobalamin)';
             if (label === 'MAGNESIUM') label = 'Magnezyum Formülasyonları';
