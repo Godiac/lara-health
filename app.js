@@ -1080,6 +1080,18 @@ function filterAndSortProducts() {
         });
 
         list.sort((a, b) => {
+            // 0. BRAND HERO / CLINICAL FLAGSHIP PRIORITY:
+            // "Sorvagen yazılınca ilk bu çıksın": Sorvagen Smart Double Sitikolin (ID 3627) is the #1 flagship hero!
+            const qAll = [q1, q2].filter(Boolean).join(' ').toLowerCase();
+            const isSorvagenQuery = qAll.includes('sorvagen') || (targetSortAliases || []).some(x => x && x.includes('sorvagen'));
+            const isDoubleSitikolin = (qAll.includes('double') && qAll.includes('sitikolin')) || qAll.includes('smart double');
+            if (isSorvagenQuery || isDoubleSitikolin) {
+                const isHeroA = a.id === 3627 || (a.urunAdi || '').toLowerCase().includes('smart double sitikolin');
+                const isHeroB = b.id === 3627 || (b.urunAdi || '').toLowerCase().includes('smart double sitikolin');
+                if (isHeroA && !isHeroB) return -1;
+                if (!isHeroA && isHeroB) return 1;
+            }
+
             // 1. RELEVANCE LOCATION TIER: Title match (Tier 1) ALWAYS comes first!
             const locA = a._matchLocationTier || 1;
             const locB = b._matchLocationTier || 1;
