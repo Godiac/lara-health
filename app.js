@@ -260,7 +260,8 @@ const NUTRIENT_FAMILIES = [
     { key: 'coq10', pattern: /\b(coq10|coq-10|coq\s*10|koenzim\s*q10|koenzim\s*q-10|koenzim\s*q\s*10|coenzyme\s*q10|coenzyme\s*q-10|ubiquinone|ubikinon|ubiquinol|ubikinol|kaneka|ubqh|q-evail|coqnol)\b/i },
     { key: 'glutathione', pattern: /\b(glutatyon|glutathione|setria)\b/i },
     { key: 'omega', pattern: /\b(omega\s*3|balık\s*yağı|epa\b|dha\b|krill)\b/i },
-    { key: 'probiotic', pattern: /\b(probiyotik|probiotic|lactobacillus|bifidobacterium|akkermansia)\b/i }
+    { key: 'probiotic', pattern: /\b(probiyotik|probiotic|lactobacillus|bifidobacterium|akkermansia)\b/i },
+    { key: 'citicoline', pattern: /\b(sitikolin|citicoline|cognizin|cdp-kolin|cdp-choline|sitikoline)\b/i }
 ];
 
 
@@ -376,7 +377,8 @@ const CAROUSEL_INGREDIENTS = [
     { name: 'Probiyotik', label: 'Probiyotik', aliases: ['probiyotik', 'probiotic', 'lactobacillus', 'bifidobacterium'] },
     { name: 'Demir', label: 'Demir (Lipozomal / Bisglisinat)', aliases: ['demir', 'iron', 'ferrit', 'bisglisinat'] },
     { name: 'NAC', label: 'NAC (N-Asetil Sistein)', aliases: ['nac', 'n-asetil sistein', 'acetylcysteine'] },
-    { name: 'Urolithin A', label: 'Urolithin A (Ürolitin A)', aliases: ['urolithin a', 'urolithin', 'urolitin a', 'urolitin', 'ürolitin a', 'ürolitin', 'mitopure', 'prolithin a', 'prolithin'] }
+    { name: 'Urolithin A', label: 'Urolithin A (Ürolitin A)', aliases: ['urolithin a', 'urolithin', 'urolitin a', 'urolitin', 'ürolitin a', 'ürolitin', 'mitopure', 'prolithin a', 'prolithin'] },
+    { name: 'Sitikolin', label: 'Sitikolin (Cognizin / CDP-Kolin)', aliases: ['sitikolin', 'citicoline', 'cognizin', 'cdp-kolin', 'cdp choline', 'cdp-choline', 'cdp kolin', 'sitikoline'] }
 ];
 
 function escapeHtml(str) {
@@ -660,6 +662,20 @@ function computeSingleLocationTier(product, profile) {
 function getClinicalQueryIntent(query) {
     if (!query || !query.trim()) return null;
     const q = query.toLowerCase().trim();
+
+    // Sitikolin / Citicoline / Cognizin Ailesi
+    if (/^(sitikolin|citicoline|cognizin|cdp-kolin|cdp\s*kolin|cdp-choline|cdp\s*choline|sitikoline)$/i.test(q) ||
+        q.includes('sitikolin') || q.includes('citicoline') || q.includes('cognizin')) {
+        return {
+            family: 'CITICOLINE',
+            unitType: 'mass',
+            filterRegex: /\b(sitikolin|citicoline|cognizin|cdp-kolin|cdp-choline|sitikoline)\b/i,
+            highlightTerms: [
+                'sitikolin', 'citicoline', 'cognizin', 'cdp-kolin', 'cdp-choline', 'cdp kolin', 'cdp choline', 'sitikoline'
+            ],
+            sortAliases: ['sitikolin', 'citicoline', 'cognizin', 'cdp-kolin', 'cdp-choline']
+        };
+    }
 
     // Urolithin A / Ürolitin A / Mitopure Ailesi ("urolitin" <-> "urolithin a" <-> "ürolitin")
     if (/^(urolitin|urolitin\s*a|ürolitin|ürolitin\s*a|urolithin|urolithin\s*a|urolithine|mitopure|prolithin|prolithin\s*a)$/i.test(q) ||
