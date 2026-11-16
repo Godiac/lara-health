@@ -286,9 +286,12 @@ function getPurityTier(product, queryTerm, aliases = []) {
 
     const terms = [q, ...aliases.map(a => a.toLowerCase())].filter(t => t.length >= 2);
 
+    const titleClean = typeof getCleanString === 'function' ? getCleanString(title) : title.replace(/[\s\-_'’.,/()+=]+/g, '');
     const titleOrTagsMatch = terms.some(t => {
+        const tClean = typeof getCleanString === 'function' ? getCleanString(t) : t.replace(/[\s\-_'’.,/()+=]+/g, '');
         return new RegExp('\\b' + escapeRegex(t) + '\\b', 'i').test(title) ||
                title.includes(t) ||
+               (tClean.length >= 4 && titleClean.includes(tClean)) ||
                new RegExp('\\b' + escapeRegex(t) + '\\b', 'i').test(tags);
     });
 
@@ -426,6 +429,11 @@ function toTrLower(str) {
     return String(str).replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
 }
 
+function getCleanString(str) {
+    if (!str) return '';
+    return toTrLower(str).replace(/[\s\-_'’.,/()+=]+/g, '');
+}
+
 // EXTENDED QUERY PROFILE (SYNONYM & STEMMING ENGINE)
 function getExtendedQueryProfile(query) {
     if (!query) return null;
@@ -435,6 +443,16 @@ function getExtendedQueryProfile(query) {
     const intent = getClinicalQueryIntent(q);
     const aliases = new Set();
     aliases.add(q);
+
+    // Whitespace, hyphen & punctuation agnostic alias expansion
+    // e.g. "omega life" <-> "omegalife", "d3 k2" <-> "d3k2", "new life" <-> "newlife"
+    const qClean = getCleanString(q);
+    if (qClean && qClean !== q && qClean.length >= 3) {
+        aliases.add(qClean);
+    }
+
+    // Split into tokens for multi-token / cross-field matching
+    const tokens = q.split(/[\s\-_'’.,/()+=]+/).filter(Boolean);
 
     let family = intent ? intent.family : null;
     let unitType = intent ? intent.unitType : 'mass';
@@ -516,6 +534,8 @@ function getExtendedQueryProfile(query) {
 
     return {
         raw: q,
+        qClean,
+        tokens,
         family,
         unitType,
         isEnzyme,
@@ -538,9 +558,15 @@ function computeSingleLocationTier(product, profile) {
     const icerik = toTrLower(product.icerik || '');
     const endikasyon = toTrLower(product.endikasyon || '');
 
-    const { aliases, isEnzyme } = profile;
+    const titleClean = getCleanString(title);
+    const brandClean = getCleanString(brand);
+    const tagsClean = getCleanString(tags);
+    const icerikClean = getCleanString(icerik);
+    const endikasyonClean = getCleanString(endikasyon);
 
-    function testField(str) {
+    const { aliases, tokens, isEnzyme } = profile;
+
+    function testField(str, strClean) {
         if (!str) return false;
         if (isEnzyme) {
             // Must NOT match koenzim / coenzyme
@@ -556,6 +582,7 @@ function computeSingleLocationTier(product, profile) {
             return false;
         }
 
+        // 1. Check direct aliases (standard string & whitespace-stripped)
         for (const a of aliases) {
             if (a.length <= 3) {
                 const re = new RegExp('\\b' + escapeRegex(a) + '\\b', 'i');
@@ -563,14 +590,69 @@ function computeSingleLocationTier(product, profile) {
             } else {
                 if (str.includes(a)) return true;
             }
+            // Space/hyphen-stripped comparison
+            // Matches "omega life" (aClean = "omegalife") in "omegalife 1200" (strClean = "omegalife1200")
+            // AND "omegalife" (aClean = "omegalife") in "omega life 1200" (strClean = "omegalife1200")
+            const aClean = getCleanString(a);
+            if (aClean.length >= 4 && strClean && strClean.includes(aClean)) {
+                return true;
+            }
         }
+
+        // 2. Multi-token check: If query has multiple words (e.g. "omega 1200", "pan plus"),
+        // check if all tokens appear in this single field
+        if (tokens && tokens.length > 1) {
+            const allTokensInField = tokens.every(t => {
+                if (t.length <= 3) {
+                    const re = new RegExp('\\b' + escapeRegex(t) + '\\b', 'i');
+                    return re.test(str);
+                }
+                return str.includes(t) || (strClean && strClean.includes(t));
+            });
+            if (allTokensInField) return true;
+        }
+
         return false;
     }
 
-    if (testField(title)) return 1;
-    if (testField(brand) || testField(tags)) return 2;
-    if (testField(icerik)) return 3;
-    if (testField(endikasyon)) return 4;
+    // Tier 1: Title Direct Match (İsimde Doğrudan Geçenler - En Üstte)
+    if (testField(title, titleClean)) return 1;
+
+    // Tier 2: Brand or Key Tag Match
+    if (testField(brand, brandClean) || testField(tags, tagsClean)) return 2;
+
+    // Tier 3: Formulation (icerik) Match
+    if (testField(icerik, icerikClean)) return 3;
+
+    // Tier 4: Indication / Description (endikasyon) Match
+    if (testField(endikasyon, endikasyonClean)) return 4;
+
+    // Tier 2 Fallback: Multi-token split across (title + brand + tags)
+    // e.g. "solgar omega" where Solgar is Brand and Omega is Title/Tag
+    if (tokens && tokens.length > 1) {
+        const titleBrandTags = title + ' ' + brand + ' ' + tags;
+        const titleBrandTagsClean = getCleanString(titleBrandTags);
+        const allInTitleBrand = tokens.every(t => {
+            if (t.length <= 3) {
+                const re = new RegExp('\\b' + escapeRegex(t) + '\\b', 'i');
+                return re.test(titleBrandTags);
+            }
+            return titleBrandTags.includes(t) || titleBrandTagsClean.includes(t);
+        });
+        if (allInTitleBrand) return 2;
+
+        // Tier 3 Fallback: Multi-token split across metadata + formulation (icerik)
+        const allMeta = titleBrandTags + ' ' + icerik;
+        const allInIcerik = tokens.every(t => {
+            if (t.length <= 3) {
+                const re = new RegExp('\\b' + escapeRegex(t) + '\\b', 'i');
+                return re.test(allMeta);
+            }
+            return allMeta.includes(t);
+        });
+        if (allInIcerik) return 3;
+    }
+
     return 999;
 }
 
@@ -738,6 +820,11 @@ function highlightMatch(text, query1, query2) {
             const activeTokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
 
             terms.push(q);
+            const qClean = q.replace(/[\s\-_'’.,/()+=]+/g, '');
+            if (qClean && qClean !== q && qClean.length >= 3) {
+                terms.push(qClean);
+            }
+
             activeTokens.forEach(t => {
                 if (t.length > 1 || ['b', 'c', 'd', 'k', 'e', 'a'].includes(t)) {
                     terms.push(t);
@@ -787,9 +874,14 @@ function isChipSearchMatch(chipText, query1, query2) {
 
 function matchQueryToIngredient(q) {
     const query = q.toLowerCase().trim();
+    const queryClean = typeof getCleanString === 'function' ? getCleanString(query) : query.replace(/[\s\-_'’.,/()+=]+/g, '');
     return CAROUSEL_INGREDIENTS.find(item => {
         if (item.name.toLowerCase() === query || item.label.toLowerCase() === query) return true;
-        return item.aliases.some(a => a.toLowerCase() === query);
+        if (queryClean && (getCleanString(item.name) === queryClean || getCleanString(item.label) === queryClean)) return true;
+        return item.aliases.some(a => {
+            const aLower = a.toLowerCase();
+            return aLower === query || (queryClean && getCleanString(aLower) === queryClean);
+        });
     }) || null;
 }
 
