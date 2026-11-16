@@ -2478,9 +2478,105 @@ function getItemScheduleSlots(item) {
     if (z.includes('öğle') || z.includes('ogle')) slots.push('ogle');
     if (z.includes('akşam') || z.includes('aksam')) slots.push('aksam');
     if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) slots.push('yatmadan');
+
+    // A x B kuralı: İlk sayı günde kaç kere olduğu, ikinci sayı 1 defada kaç adet alındığı
+    // Eğer A = 2 ise ve sadece 1 slot tespit edildiyse, 2. dozu otomatik tamamla
+    const matchX = String(item.doz || '').match(/^(\d+)\s*[xX*]/);
+    if (matchX) {
+        const times = parseInt(matchX[1], 10);
+        if (times === 2 && slots.length === 1) {
+            if (slots[0] === 'sabah') slots.push('aksam');
+            else if (slots[0] === 'aksam') slots.unshift('sabah');
+            else if (slots[0] === 'yatmadan') slots.unshift('sabah');
+            else if (slots[0] === 'ogle') slots.push('aksam');
+        } else if (times === 3 && slots.length < 3) {
+            return ['sabah', 'ogle', 'aksam'];
+        }
+    }
+
     if (slots.length === 0) slots.push('sabah');
     return slots;
 }
+
+
+function handleRxDozChange(realIdx, newDoz) {
+    if (realIdx < 0 || realIdx >= prescriptionList.length) return;
+    const item = prescriptionList[realIdx];
+    item.doz = (newDoz || '').trim();
+
+    // A x B formülü:
+    // A: Günde kaç kere olduğu
+    // B: 1 defada kaç adet/tablet/kapsül alındığı
+    const match = item.doz.match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
+    if (match) {
+        const times = parseInt(match[1], 10);
+        const perDose = match[2];
+        const unit = (match[3] || '').trim();
+
+        if (times === 1) {
+            item.siklik = 'Günde 1 kez';
+        } else if (times === 2) {
+            item.siklik = 'Günde 2 kez';
+            if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
+                const zLower = item.zaman.toLowerCase();
+                if (zLower.includes('sabah')) item.zaman = 'Sabah - Akşam';
+                else if (zLower.includes('akşam')) item.zaman = 'Sabah - Akşam';
+                else if (zLower.includes('yatmadan')) item.zaman = 'Sabah - Yatmadan';
+            }
+        } else if (times === 3) {
+            item.siklik = 'Günde 3 kez';
+            item.zaman = 'Sabah, Öğle, Akşam';
+        } else if (times > 3) {
+            item.siklik = 'Günde ' + times + ' kez';
+        }
+    }
+
+    const siklikInput = document.getElementById('rxSiklikInput_' + realIdx);
+    if (siklikInput) siklikInput.value = item.siklik;
+    const zamanInput = document.getElementById('rxZamanInput_' + realIdx);
+    if (zamanInput) zamanInput.value = item.zaman;
+
+    renderDailyScheduleOnly();
+}
+window.handleRxDozChange = handleRxDozChange;
+
+function handleRxSiklikChange(realIdx, newSiklik) {
+    if (realIdx < 0 || realIdx >= prescriptionList.length) return;
+    const item = prescriptionList[realIdx];
+    item.siklik = (newSiklik || '').trim();
+
+    const sLower = item.siklik.toLowerCase();
+    const match = (item.doz || '').match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
+    let perDose = '1';
+    let unit = isMedicationProduct(item) ? 'tablet' : 'kapsül';
+    if (match) {
+        perDose = match[2];
+        if (match[3] && match[3].trim()) unit = match[3].trim();
+    }
+
+    if (sLower.includes('günde 2') || sLower.includes('2 kez') || sLower.includes('2x')) {
+        item.doz = '2 x ' + perDose + ' ' + unit;
+        if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
+            const zLower = item.zaman.toLowerCase();
+            if (zLower.includes('sabah')) item.zaman = 'Sabah - Akşam';
+            else if (zLower.includes('akşam')) item.zaman = 'Sabah - Akşam';
+            else if (zLower.includes('yatmadan')) item.zaman = 'Sabah - Yatmadan';
+        }
+    } else if (sLower.includes('günde 1') || sLower.includes('1 kez') || sLower.includes('1x')) {
+        item.doz = '1 x ' + perDose + ' ' + unit;
+    } else if (sLower.includes('günde 3') || sLower.includes('3 kez') || sLower.includes('3x')) {
+        item.doz = '3 x ' + perDose + ' ' + unit;
+        item.zaman = 'Sabah, Öğle, Akşam';
+    }
+
+    const dozInput = document.getElementById('rxDozInput_' + realIdx);
+    if (dozInput) dozInput.value = item.doz;
+    const zamanInput = document.getElementById('rxZamanInput_' + realIdx);
+    if (zamanInput) zamanInput.value = item.zaman;
+
+    renderDailyScheduleOnly();
+}
+window.handleRxSiklikChange = handleRxSiklikChange;
 
 function duplicateRxItem(idx, forceSlot) {
     if (idx < 0 || idx >= prescriptionList.length) return;
@@ -3352,8 +3448,7 @@ function renderRxDrawerBody() {
                         <div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">${escapeXml(item.marka || 'IV Therapy')}</div>
                     </td>
                     <td style="width: 12%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.doz || ''}" 
-                                onchange="prescriptionList[${realIdx}].doz = this.value;" placeholder="Doz (örn: 7.5 g)" style="padding: 7px 10px; font-size: 13px;">
+                        <input type="text" id="rxDozInput_${realIdx}" class="plan-input-inline" value="${item.doz || (isMedicationProduct(item) ? '1 x 1 tablet' : '1 x 1 kapsül')}" onchange="handleRxDozChange(${realIdx}, this.value)" placeholder="Doz (örn: 1 x 1 kapsül)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 11%; vertical-align: middle;">
                         <input type="text" class="plan-input-inline" value="${item.siklik || 'Haftada 1'}" 
@@ -3428,12 +3523,10 @@ function renderRxDrawerBody() {
                                onchange="prescriptionList[${realIdx}].not = this.value" title="Özel medikal talimat" style="padding: 5px 8px; font-size: 12px;">
                     </td>
                     <td style="width: 13%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 tablet'}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz" style="padding: 7px 10px; font-size: 13px;">
+                        <input type="text" id="rxDozInput_${realIdx}" class="plan-input-inline" value="${item.doz || (isMedicationProduct(item) ? '1 x 1 tablet' : '1 x 1 kapsül')}" onchange="handleRxDozChange(${realIdx}, this.value)" placeholder="Doz (örn: 1 x 1 kapsül)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 13%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık" style="padding: 7px 10px; font-size: 13px;">
+                        <input type="text" id="rxSiklikInput_${realIdx}" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" onchange="handleRxSiklikChange(${realIdx}, this.value)" placeholder="Sıklık (örn: Günde 1 kez)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 12%; vertical-align: middle;">
                         <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
@@ -3510,12 +3603,10 @@ function renderRxDrawerBody() {
                                onchange="prescriptionList[${realIdx}].not = this.value" title="Özel klinik not veya titrasyon takvimi" style="padding: 5px 8px; font-size: 12px;">
                     </td>
                     <td style="width: 13%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.doz || '1 x 1 kapsül'}" 
-                               onchange="prescriptionList[${realIdx}].doz = this.value; renderDailyScheduleOnly();" placeholder="Doz (örn: 1 x 1 kapsül)" style="padding: 7px 10px; font-size: 13px;">
+                        <input type="text" id="rxDozInput_${realIdx}" class="plan-input-inline" value="${item.doz || (isMedicationProduct(item) ? '1 x 1 tablet' : '1 x 1 kapsül')}" onchange="handleRxDozChange(${realIdx}, this.value)" placeholder="Doz (örn: 1 x 1 kapsül)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 13%; vertical-align: middle;">
-                        <input type="text" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" 
-                               onchange="prescriptionList[${realIdx}].siklik = this.value; renderDailyScheduleOnly();" placeholder="Sıklık (örn: Günde 1 kez)" style="padding: 7px 10px; font-size: 13px;">
+                        <input type="text" id="rxSiklikInput_${realIdx}" class="plan-input-inline" value="${item.siklik || 'Günde 1 kez'}" onchange="handleRxSiklikChange(${realIdx}, this.value)" placeholder="Sıklık (örn: Günde 1 kez)" style="padding: 7px 10px; font-size: 13px;">
                     </td>
                     <td style="width: 12%; vertical-align: middle;">
                         <input type="text" id="rxZamanInput_${realIdx}" class="plan-input-inline" value="${item.zaman || 'Sabah'}" 
