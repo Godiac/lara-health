@@ -281,7 +281,7 @@ function initProductSearchIndex() {
 function getPurityTier(product, queryTerm, aliases = []) {
     const title = (product.urunAdi || '').toLowerCase();
     const icerik = (product.icerik || '').toLowerCase();
-    const tags = (product.tags || '').toLowerCase();
+    const tags = (Array.isArray(product.tags) ? product.tags.join(' ') : String(product.tags || '')).toLowerCase();
     const titleAndIcerik = title + ' ' + icerik;
     const q = (queryTerm || '').toLowerCase().trim();
 
@@ -961,7 +961,7 @@ function isModuleMatch(product, mod) {
     if (!mod || mod === 'HEPSI') return true;
     const m = (product.modul || '').toLowerCase();
     const k = (product.kategori || '').toLowerCase();
-    const t = (product.tags || '').toLowerCase();
+    const t = (Array.isArray(product.tags) ? product.tags.join(' ') : String(product.tags || '')).toLowerCase();
     const u = (product.urunAdi || '').toLowerCase();
     const i = (product.icerik || '').toLowerCase();
     const combined = m + ' ' + k + ' ' + t + ' ' + u + ' ' + i;
@@ -1001,7 +1001,12 @@ function filterAndSortProducts() {
 
     // 1. Origin filter (TR vs ABD)
     if (currentOrigin !== 'ALL') {
-        list = list.filter(p => p.mensei === currentOrigin);
+        list = list.filter(p => {
+            if (currentOrigin === 'TR') {
+                return p.mensei === 'TR' || (p.mensei && (p.mensei.includes('TR') || p.mensei.includes('Türkiye') || p.mensei.includes('Institut AllergoSan')));
+            }
+            return p.mensei === currentOrigin;
+        });
     }
 
     // 2. Module filter (Smart clinical match)
@@ -1774,7 +1779,7 @@ function detectProductFormClean(p) {
     if (d.includes('kapsül') || d.includes('kapsul')) return 'Kapsül';
     if (d.includes('ml')) return 'Sıvı / Damla';
 
-    const t = (p.tags || '').toLowerCase();
+    const t = (Array.isArray(p.tags) ? p.tags.join(' ') : String(p.tags || '')).toLowerCase();
     if (t.includes('tablet')) return 'Tablet';
     if (t.includes('softgel')) return 'Yumuşak Kapsül (Softgel)';
     if (t.includes('saşe') || t.includes('sase')) return 'Saşe';
