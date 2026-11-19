@@ -426,6 +426,18 @@ function updateViewModeUI() {
     }
 }
 
+function toAsciiLower(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/İ/g, 'i').replace(/I/g, 'i').replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g').replace(/Ğ/g, 'g')
+        .replace(/ü/g, 'u').replace(/Ü/g, 'u')
+        .replace(/ş/g, 's').replace(/Ş/g, 's')
+        .replace(/ö/g, 'o').replace(/Ö/g, 'o')
+        .replace(/ç/g, 'c').replace(/Ç/g, 'c')
+        .toLowerCase();
+}
+
 function toTrLower(str) {
     if (!str) return '';
     return String(str).replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
@@ -440,11 +452,13 @@ function getCleanString(str) {
 function getExtendedQueryProfile(query) {
     if (!query) return null;
     const q = toTrLower(query).trim();
+    const qAscii = typeof toAsciiLower === 'function' ? toAsciiLower(query).trim() : q;
     if (!q) return null;
 
     const intent = getClinicalQueryIntent(q);
     const aliases = new Set();
     aliases.add(q);
+    if (qAscii) aliases.add(qAscii);
 
     // Whitespace, hyphen & punctuation agnostic alias expansion
     // e.g. "omega life" <-> "omegalife", "d3 k2" <-> "d3k2", "new life" <-> "newlife"
@@ -459,6 +473,33 @@ function getExtendedQueryProfile(query) {
     let family = intent ? intent.family : null;
     let unitType = intent ? intent.unitType : 'mass';
     let isEnzyme = false;
+
+    // IV Therapy Query ("iv", "ıv", "iv therapy", "serum")
+    if (q === 'iv' || q === 'ıv' || qAscii === 'iv' || q.includes('iv therapy') || q.includes('ıv therapy')) {
+        family = 'IV_THERAPY';
+        aliases.add('iv');
+        aliases.add('ıv');
+        aliases.add('iv therapy');
+        aliases.add('ıv terapi');
+        aliases.add('intravenöz');
+        aliases.add('serum');
+    }
+
+    // Gut / Bağırsak Query ("bağırsak", "bagirsak", "barsak", "gut", "mikrobiyom")
+    if (q === 'bağırsak' || q === 'bagirsak' || q === 'barsak' || qAscii === 'bagirsak' || qAscii === 'barsak') {
+        family = 'GUT_HEALTH';
+        aliases.add('bağırsak');
+        aliases.add('bagirsak');
+        aliases.add('barsak');
+        aliases.add('mikrobiyota');
+        aliases.add('mikrobiyom');
+        aliases.add('microbiome');
+        aliases.add('probiyotik');
+        aliases.add('probiotic');
+        aliases.add('gut');
+        aliases.add('gastrointestinal');
+        aliases.add('sindirim');
+    }
 
     // 1. Enzyme Query (Turkish "enzim" <-> English "enzym/enzyme/enzymes")
     if (/^(enzim|enzym|enzyme|enzymes|sindirim\s*enzimi|digestive\s*enzymes?)$/i.test(q) ||
@@ -554,6 +595,16 @@ function getExtendedQueryProfile(query) {
 // 999 = No Match
 function computeSingleLocationTier(product, profile) {
     if (!profile) return 1;
+
+    // IV Therapy short-circuit: Strictly match IV products and exclude false positives like "sıvı"
+    if (profile.family === 'IV_THERAPY' || profile.raw === 'iv' || profile.raw === 'ıv' || profile.qClean === 'iv') {
+        if (typeof isIVProduct === 'function' && isIVProduct(product)) return 1;
+        const u = (product.urunAdi || '').toUpperCase();
+        if (u.endsWith(' IV') || u.includes(' IV ') || u.includes('(IV)') || u.includes('IV COCKTAIL')) return 1;
+        if ((product.marka || '').toUpperCase().includes('IV THERAPY')) return 1;
+        return 999;
+    }
+
     const title = toTrLower(product.urunAdi || '');
     const brand = toTrLower(product.marka || '');
     const tags = toTrLower(product.tags || '');
