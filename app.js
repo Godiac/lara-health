@@ -2262,22 +2262,22 @@ function parseSupplementUsage(p) {
             doz = '2 x 2 ' + unit;
             siklik = 'Günde 2 kez';
             zaman = 'Sabah - Akşam';
-        } else if (dLower.includes('sabah akşam 1') || dLower.includes('sabah 1, akşam 1') || dLower.includes('sabah 1 akşam 1') || dLower.includes('günde 2 defa 1') || dLower.includes('günde 2 kez 1')) {
-            doz = '1 x 2 ' + unit;
+        } else if (dLower.includes('sabah akşam 1') || dLower.includes('sabah 1, akşam 1') || dLower.includes('sabah 1 akşam 1') || dLower.includes('günde 2 defa 1') || dLower.includes('günde 2 kez 1') || dLower.includes('2x1') || dLower.includes('2 x 1') || dLower.includes('günde 2 kez') || dLower.includes('günde 2 defa')) {
+            doz = '2 x 1 ' + unit;
             siklik = 'Günde 2 kez';
             zaman = 'Sabah - Akşam';
-        } else if (dLower.includes('günde 3 defa 1') || dLower.includes('günde 3 kez 1') || dLower.includes('sabah öğle akşam 1')) {
-            doz = '1 x 3 ' + unit;
+        } else if (dLower.includes('günde 3 defa 1') || dLower.includes('günde 3 kez 1') || dLower.includes('sabah öğle akşam 1') || dLower.includes('3x1') || dLower.includes('3 x 1') || dLower.includes('günde 3 kez') || dLower.includes('günde 3 defa')) {
+            doz = '3 x 1 ' + unit;
             siklik = 'Günde 3 kez';
             zaman = 'Sabah, Öğle, Akşam';
-        } else if (dLower.includes('3 kapsül') || dLower.includes('3 tablet') || dLower.includes('3 yumuşak') || dLower.includes('3 softgel')) {
-            doz = '3 x 1 ' + unit;
+        } else if (dLower.includes('3 kapsül') || dLower.includes('3 tablet') || dLower.includes('3 yumuşak') || dLower.includes('3 softgel') || dLower.includes('1x3') || dLower.includes('1 x 3')) {
+            doz = '1 x 3 ' + unit;
             siklik = 'Günde 1 kez';
-        } else if (dLower.includes('2 kapsül') || dLower.includes('2 tablet') || dLower.includes('2 yumuşak') || dLower.includes('2 softgel') || dLower.includes('2 porsiyon') || dLower.includes('günde 2')) {
-            doz = '2 x 1 ' + unit;
+        } else if (dLower.includes('2 kapsül') || dLower.includes('2 tablet') || dLower.includes('2 yumuşak') || dLower.includes('2 softgel') || dLower.includes('2 porsiyon') || dLower.includes('1x2') || dLower.includes('1 x 2') || dLower.includes('günde 2')) {
+            doz = '1 x 2 ' + unit;
             siklik = 'Günde 1 kez';
         } else if (dLower.includes('1-2 kapsül') || dLower.includes('1-2 tablet') || dLower.includes('1-2 porsiyon')) {
-            doz = '1-2 x 1 ' + unit;
+            doz = '1 x 1-2 ' + unit;
             siklik = 'Günde 1 kez';
         } else {
             doz = '1 x 1 ' + unit;
@@ -2286,9 +2286,9 @@ function parseSupplementUsage(p) {
     }
 
     if (!p.varsayilanSiklik) {
-        if (dLower.includes('günde 2') || dLower.includes('2x') || dLower.includes('sabah akşam')) {
+        if (dLower.includes('günde 2 defa') || dLower.includes('günde 2 kez') || dLower.includes('2x1') || dLower.includes('2 x 1') || dLower.includes('2x2') || dLower.includes('2 x 2') || dLower.includes('sabah akşam') || dLower.includes('sabah ve akşam')) {
             siklik = 'Günde 2 kez';
-        } else if (dLower.includes('günde 3') || dLower.includes('3x')) {
+        } else if (dLower.includes('günde 3 defa') || dLower.includes('günde 3 kez') || dLower.includes('3x1') || dLower.includes('3 x 1') || dLower.includes('sabah öğle akşam')) {
             siklik = 'Günde 3 kez';
         } else if (dLower.includes('gün aşırı')) {
             siklik = 'Gün aşırı';
@@ -2307,7 +2307,7 @@ function parseSupplementUsage(p) {
         } else if (dLower.includes('öğle') || dLower.includes('ogle')) {
             zaman = 'Öğle';
         } else if (siklik === 'Günde 2 kez') {
-            zaman = 'Sabah, Akşam';
+            zaman = 'Sabah - Akşam';
         } else if (siklik === 'Günde 3 kez') {
             zaman = 'Sabah, Öğle, Akşam';
         } else {
@@ -2512,13 +2512,14 @@ function formatScheduleSingleDose(dozStr, isMed) {
     }
     let s = String(dozStr).trim();
 
-    // Klinik Standardı: [Miktar] x [Kaç Kere] [Birim]
-    // İlk sayı miktar (tek seferde alınacak adet), ikinci sayı günde kaç kere alındığıdır!
-    const matchX = s.match(/^(\d+(?:-\d+)?)\s*[xX*]\s*(\d+)(.*)$/);
+    // Klinik Standardı: [Günde Kaç Kez] x [Tek Seferde Kaç Adet] [Birim]
+    // 1. sayı: Günde kaç kez alındığı (frekans)
+    // 2. sayı: 1 defada kaç adet/tablet/kapsül alınacağı (tekil doz miktarı)
+    const matchX = s.match(/^(\d+(?:-\d+)?)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
     if (matchX) {
-        const miktar = matchX[1].trim();
+        const perDose = matchX[2].trim();
         let unit = matchX[3].trim();
-        return unit ? miktar + ' ' + unit : miktar;
+        return unit ? perDose + ' ' + unit : perDose;
     }
 
     return s;
@@ -2532,10 +2533,10 @@ function getItemScheduleSlots(item) {
     if (z.includes('akşam') || z.includes('aksam')) slots.push('aksam');
     if (z.includes('yatmadan') || z.includes('gece') || z.includes('uyku')) slots.push('yatmadan');
 
-    // Klinik Standardı: [Miktar] x [Kaç Kere]. 2. sayı günde kaç kere alındığıdır!
-    const matchX = String(item.doz || '').match(/^(\d+(?:-\d+)?)\s*[xX*]\s*(\d+)/);
+    // Klinik Standardı: [Günde Kaç Kez] x [Kaç Adet]. 1. sayı günde kaç kez alındığıdır!
+    const matchX = String(item.doz || '').match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)/);
     if (matchX) {
-        const times = parseInt(matchX[2], 10);
+        const times = parseInt(matchX[1], 10);
         if (times === 2 && slots.length === 1) {
             if (slots[0] === 'sabah') slots.push('aksam');
             else if (slots[0] === 'aksam') slots.unshift('sabah');
@@ -2550,25 +2551,30 @@ function getItemScheduleSlots(item) {
     return slots;
 }
 
-
 function handleRxDozChange(realIdx, newDoz) {
     if (realIdx < 0 || realIdx >= prescriptionList.length) return;
     const item = prescriptionList[realIdx];
     item.doz = (newDoz || '').trim();
 
-    // Klinik Standardı: [Miktar] x [Kaç Kere] [Birim]
-    // 1. sayı miktar (tek seferde alınan adet), 2. sayı günde kaç kere alındığıdır
-    const match = item.doz.match(/^(\d+(?:-\d+)?)\s*[xX*]\s*(\d+)(.*)$/);
+    // Klinik Standardı: [Günde Kaç Kez] x [Kaç Adet] [Birim]
+    // 1. sayı: Günde kaç kez alındığı (frekans)
+    // 2. sayı: 1 defada kaç adet/tablet/kapsül alınacağı (tekil doz miktarı)
+    const match = item.doz.match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
     if (match) {
-        const miktar = match[1].trim();
-        const times = parseInt(match[2], 10);
+        const times = parseInt(match[1], 10);
+        const perDose = match[2].trim();
         const unit = (match[3] || '').trim();
 
         if (times === 1) {
             item.siklik = 'Günde 1 kez';
+            if (item.zaman === 'Sabah, Öğle, Akşam' || item.zaman === 'Sabah - Akşam') {
+                item.zaman = 'Sabah';
+            }
         } else if (times === 2) {
             item.siklik = 'Günde 2 kez';
-            if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
+            if (item.zaman === 'Sabah, Öğle, Akşam') {
+                item.zaman = 'Sabah - Akşam';
+            } else if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
                 const zLower = item.zaman.toLowerCase();
                 if (zLower.includes('sabah')) item.zaman = 'Sabah - Akşam';
                 else if (zLower.includes('akşam')) item.zaman = 'Sabah - Akşam';
@@ -2597,27 +2603,32 @@ function handleRxSiklikChange(realIdx, newSiklik) {
     item.siklik = (newSiklik || '').trim();
 
     const sLower = item.siklik.toLowerCase();
-    // Klinik Standardı: [Miktar] x [Kaç Kere] [Birim]
-    const match = (item.doz || '').match(/^(\d+(?:-\d+)?)\s*[xX*]\s*(\d+)(.*)$/);
-    let miktar = '1';
+    // Klinik Standardı: [Günde Kaç Kez] x [Kaç Adet] [Birim]
+    const match = (item.doz || '').match(/^(\d+)\s*[xX*]\s*([0-9]+(?:-[0-9]+)?)(.*)$/);
+    let perDose = '1';
     let unit = isMedicationProduct(item) ? 'tablet' : 'kapsül';
     if (match) {
-        miktar = match[1].trim();
+        perDose = match[2].trim();
         if (match[3] && match[3].trim()) unit = match[3].trim();
     }
 
     if (sLower.includes('günde 2') || sLower.includes('2 kez') || sLower.includes('2x')) {
-        item.doz = miktar + ' x 2 ' + unit;
-        if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
+        item.doz = '2 x ' + perDose + ' ' + unit;
+        if (item.zaman === 'Sabah, Öğle, Akşam') {
+            item.zaman = 'Sabah - Akşam';
+        } else if (item.zaman && !item.zaman.includes('-') && !item.zaman.includes(',') && !item.zaman.includes('ve')) {
             const zLower = item.zaman.toLowerCase();
             if (zLower.includes('sabah')) item.zaman = 'Sabah - Akşam';
             else if (zLower.includes('akşam')) item.zaman = 'Sabah - Akşam';
             else if (zLower.includes('yatmadan')) item.zaman = 'Sabah - Yatmadan';
         }
     } else if (sLower.includes('günde 1') || sLower.includes('1 kez') || sLower.includes('1x')) {
-        item.doz = miktar + ' x 1 ' + unit;
+        item.doz = '1 x ' + perDose + ' ' + unit;
+        if (item.zaman === 'Sabah, Öğle, Akşam' || item.zaman === 'Sabah - Akşam') {
+            item.zaman = 'Sabah';
+        }
     } else if (sLower.includes('günde 3') || sLower.includes('3 kez') || sLower.includes('3x')) {
-        item.doz = miktar + ' x 3 ' + unit;
+        item.doz = '3 x ' + perDose + ' ' + unit;
         item.zaman = 'Sabah, Öğle, Akşam';
     }
 
@@ -3032,7 +3043,7 @@ const DEFAULT_CLINICAL_PROTOCOLS = [
                 productId: 23,
                 urunAdi: 'Enzymlife Gold',
                 marka: 'nbtlife',
-                doz: '1 x 1 kapsül',
+                doz: '2 x 1 kapsül',
                 siklik: 'Günde 2 kez',
                 zaman: 'Öğle ve Akşam',
                 kullanim: 'Yemekle birlikte',
